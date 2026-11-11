@@ -16,7 +16,7 @@ Configurable Blank Audio Filter: Added a threshold setting (default: 3584 bytes 
 Dirwatch File-Stability Polling: Ingest monitors file size until it stops changing before attempting to read, preventing corrupted or cut-off calls caused by reading files while the recorder is still writing.
 
 #  Audio Processing & Normalization:
-Standardized Mono MP3 Output: Shifted FFmpeg conversion from fragmented M4A to mono MP3 (32 kbps, 22,050 Hz via libmp3lame). This resolves playback failures on longer recordings across desktop and mobile browsers.
+Standardized Mono MP3 Output: Shifted FFmpeg conversion from fragmented M4A to mono MP3 (32 kbps, 22,050 Hz via libmp3lame). This resolves certain playback failures.
 
 Loudness Normalization Preserved: Both Standard and Loud normalization continue to run through FFmpeg's loudnorm filter prior to encoding.
 
