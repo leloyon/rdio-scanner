@@ -1,0 +1,288 @@
+:host {
+  box-sizing: border-box;
+  display: block;
+  max-height: 100%;
+  max-width: 640px;
+  min-width: 0;
+  padding: 24px;
+  user-select: none;
+}
+
+.rdio-control {
+  .row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 12px;
+
+    .rdio-button {
+      box-sizing: content-box;
+      flex: 1;
+      line-height: normal;
+    }
+
+    .spacer {
+      display: block;
+      width: 24px;
+    }
+  }
+}
+
+.rdio-display {
+  background: rgb(209, 238, 238);
+  box-shadow: 2px 2px 4px rgb(0, 0, 0) inset, 1px 1px 2px 1px rgb(255, 255, 255);
+  color: rgba(0, 0, 0, 0.8);
+  cursor: default;
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  padding: 8px;
+
+  &.idle {
+    background: rgb(190, 190, 174);
+
+    .avoid,
+    .patched {
+      color: rgb(190, 190, 174);
+    }
+  }
+
+  * {
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .auth {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    justify-content: center;
+    left: 0;
+    position: absolute;
+    top: 0;
+    visibility: hidden;
+    width: 100%;
+
+    &.visible {
+      visibility: visible;
+    }
+
+    > form {
+      background: rgb(240, 240, 240);
+      border-radius: 8px;
+      padding: 8px 32px;
+
+      input {
+        text-align: center;
+      }
+    }
+  }
+
+  .flag {
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 3px;
+    color: rgb(209, 238, 238);
+    display: none;
+    margin-left: 4px;
+    opacity: 0.87;
+    padding: 0 3px;
+  }
+
+  .flaged {
+    display: block;
+  }
+
+  .wrapper {
+    position: relative;
+  }
+
+  .row {
+    display: flex;
+    flex-direction: row;
+    height: 20px;
+    justify-content: space-between;
+
+    &.big {
+      font-size: 24px;
+      height: 32px;
+      line-height: 32px;
+    }
+
+    &.right {
+      justify-content: flex-end;
+    }
+
+    &.small {
+      font-size: 12px;
+      height: 14px;
+      line-height: 14px;
+    }
+  }
+
+  .history {
+    border-collapse: collapse;
+    font-size: 11px;
+    table-layout: fixed;
+    width: 100%;
+
+    td,
+    th {
+      padding: 0 6px;
+      text-align: start;
+
+      &:nth-child(1) {
+        width: 10%;
+      }
+
+      &:nth-child(2) {
+        width: 25%;
+      }
+
+      &:nth-child(3) {
+        width: 25%;
+      }
+
+      &:nth-child(4) {
+        width: 40%;
+      }
+    }
+
+    th {
+      color: rgba(0, 0, 0, 0.4);
+      font-weight: 400;
+      text-transform: uppercase;
+    }
+
+    tr {
+      height: 21px;
+
+      &.replaying {
+        font-weight: 700;
+      }
+    }
+
+    tbody > tr {
+      border-top: 1px solid rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+.rdio-status {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  min-height: 1.5rem;
+
+  .branding {
+    color: rgb(64, 64, 64);
+    flex: 1;
+    font-size: 16px;
+    font-weight: normal;
+    letter-spacing: 2px;
+    line-height: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: -1px -1px 1px rgba(0, 0, 0, 0.7), 1px 1px 1px rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .led {
+    background: rgb(80, 80, 80);
+    display: block;
+    height: 12px;
+    margin-left: 24px;
+    width: 24px;
+
+    &.on {
+      background: rgb(0, 230, 118);
+      box-shadow: 0 0 6px 3px rgb(0, 230, 118);
+
+      &.blue {
+        background: rgb(41, 121, 255);
+        box-shadow: 0 0 6px 3px rgb(41, 121, 255);
+      }
+
+      &.cyan {
+        background: rgb(0, 229, 255);
+        box-shadow: 0 0 6px 3px rgb(0, 229, 255);
+      }
+
+      &.green {
+        background: rgb(0, 230, 118);
+        box-shadow: 0 0 6px 3px rgb(0, 230, 118);
+      }
+
+      &.magenta {
+        background: rgb(213, 0, 249);
+        box-shadow: 0 0 6px 3px rgb(213, 0, 249);
+      }
+
+      &.orange {
+        background: rgb(255, 145, 0);
+        box-shadow: 0 0 6px 3px rgb(255, 145, 0);
+      }
+
+      &.red {
+        background: rgb(255, 23, 68);
+        box-shadow: 0 0 6px 3px rgb(255, 23, 68);
+      }
+
+      &.white {
+        background: rgb(255, 255, 255);
+        box-shadow: 0 0 6px 3px rgb(255, 255, 255);
+      }
+
+      &.yellow {
+        background: rgb(255, 234, 0);
+        box-shadow: 0 0 6px 3px rgb(255, 234, 0);
+      }
+    }
+
+    &.paused {
+      animation: led-blink 2s step-end infinite;
+    }
+
+    @keyframes led-blink {
+      50% {
+        background: rgb(80, 80, 80);
+        box-shadow: none;
+      }
+    }
+  }
+}
+
+.rdio-display,
+.rdio-status {
+  margin-bottom: 24px;
+}
+
+.rdio-help {
+  bottom: 24px;
+  opacity: 0.3;
+  position: absolute;
+  right: 24px;
+}
+
+:host([data-theme="amber"]) { --lcd-bg: #211b09; --lcd-ink: #ffd365; --lcd-idle: #191508; }
+:host([data-theme="green"]) { --lcd-bg: #101d13; --lcd-ink: #a3f2a0; --lcd-idle: #0b160d; }
+:host([data-theme="red"]) { --lcd-bg: #251014; --lcd-ink: #ff9c9f; --lcd-idle: #1b0b0e; }
+:host([data-theme="blue"]) { --lcd-bg: #101d29; --lcd-ink: #a5dfff; --lcd-idle: #0b141d; }
+:host([data-theme="white"]) { --lcd-bg: #171b1a; --lcd-ink: #e6f5ec; --lcd-idle: #101312; }
+:host([data-theme="oled"]) { --lcd-bg: #000000; --lcd-ink: #e0e3e5; --lcd-idle: #000000; }
+:host:not([data-theme="default"]) {
+  .rdio-display { background: var(--lcd-bg); color: var(--lcd-ink); }
+  .rdio-display.idle { background: var(--lcd-idle); }
+  .rdio-display .flag { background: var(--lcd-ink); color: var(--lcd-bg); }
+  .rdio-display .history th { color: var(--lcd-ink); opacity: .7; }
+  .rdio-display .history tbody > tr { border-color: var(--lcd-ink); }
+}
+.browser-controls { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.volume-control { display: flex; flex: 1 1 220px; align-items: center; gap: 8px; min-width: 0; }
+.volume-control mat-slider { flex: 1; min-width: 100px; }
+.volume-control span { width: 42px; text-align: right; }
+.browser-controls mat-form-field { width: 200px; max-width: 100%; background: var(--scanner-control-surface); color: var(--scanner-control-ink); border-radius: 3px; padding: 8px 10px 0; box-sizing: border-box; }
+@media (max-width: 480px) { :host { padding: 12px; } }
