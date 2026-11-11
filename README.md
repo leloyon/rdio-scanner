@@ -6,6 +6,48 @@
 
 You can listen to [Rdio Scanner](https://github.com/chuot/rdio-scanner) on any modern browsers using the integrated web app.
 
+# Changes to this fork:
+
+# Ingest, Duplicate Detection & File Stability:
+Smart Duplicate Resolution: Replaced simple duplicate rejection with a None / Reject / Replace decision engine. When a duplicate call arrives within the detection window with the same format and comparable size, the longer recording replaces the shorter one instead of discarding it. Calls of different formats remain separated.
+
+Configurable Blank Audio Filter: Added a threshold setting (default: 3584 bytes / 3.5 KB) that blocks empty or dead-air uploads while allowing legitimate short calls through. Can be set to 0 in Admin Options to disable.
+
+Dirwatch File-Stability Polling: Ingest monitors file size until it stops changing before attempting to read, preventing corrupted or cut-off calls caused by reading files while the recorder is still writing.
+
+#  Audio Processing & Normalization:
+Standardized Mono MP3 Output: Shifted FFmpeg conversion from fragmented M4A to mono MP3 (32 kbps, 22,050 Hz via libmp3lame). This resolves playback failures on longer recordings across desktop and mobile browsers.
+
+Loudness Normalization Preserved: Both Standard and Loud normalization continue to run through FFmpeg's loudnorm filter prior to encoding.
+
+Fail-Safe Ingest: If FFmpeg conversion fails, the original audio file is retained and logged rather than dropped.
+
+# Statistics & Activity Dashboard:
+Statistics Engine & RAM Cache: Built-in read-only analytics endpoint cached in memory for 5 minutes, ensuring zero performance impact on live listeners.
+
+Visual Activity Heatmap & Drilldown: Displays hourly activity over a 7-day period with 10-call step increments. Clicking any cell filters the top 10 talkgroups for that specific hour; includes a 1-click Reset. Statistics page uses a heat-map type system, where the hours with the most amount of traffic will show red.
+
+System & Date Range Filters: Admins can filter calls and talkgroup rankings across all or specific systems.
+
+Public Access Toggle: New option under Admin → Options (publicStatistics, off by default) that adds a STATS button to the main scanner interface for public listeners. This is for the web interface only. No Stats button will be visible on mobile devices using the official rdio-scanner app and this button will be hidden to the public unless enabled in your admin panel. You as the admin, can still view the statistics in a dedicated admin page regardless of whether it's enabled or disabled for everyone else.
+
+# Admin Options & Database Safety:
+Zero Schema Migrations: All new configuration keys (duplicateBlankAudioSize, dirwatchMaxWait, publicStatistics) are stored inside the existing JSON options blob, maintaining 100% database compatibility with standard v6.6.3 rdio-scanner.db files.
+
+Accurate Admin Captions: Updated the Audio Conversion descriptions in the Admin panel to reflect mono MP3 encoding.
+
+Prune Talkgroup Tools added to the admin panel, used to clean up phantom IDs (e.g., short decode errors or anomalous IDs) and unnamed talkgroups that aren't named. Calls are preserved regardless. 
+
+# 5. Changes to the browser Web Player (Again, this won't function in your rdio-scanner app. Only if you use a browser on PC or your phone:
+7 Custom Display Themes: Added an on-page dropdown with 7 colorways (Default, Vintage Amber LCD, Night Ops Green, Tactical Night Red, Cruiser Blue, Phosphor CRT White, and Midnight OLED), saved locally in the browser. Changes the color of the "LCD" panel only. 
+
+Main Screen Volume Slider: Added an on-screen slider positioned below the control buttons, using a Web Audio API gain node with volume saved in localStorage.
+
+Dynamic Tab Title: PC Browser tab title dynamically displays the active transmission during a call ([System] Talkgroup Name) so you no longer have to leave the page you're currently looking at to determine who's talking.
+
+
+Concurrent Inflight File Waits: File waits run independently with a configurable timeout (default: 180 seconds), preventing a long recording from stalling the ingestion of subsequent calls.
+
 # Recorders compatibility
 
 [Rdio Scanner](https://github.com/chuot/rdio-scanner) works with any radio recorder, as long as they can create audio files separated by conversations or transmissions.
