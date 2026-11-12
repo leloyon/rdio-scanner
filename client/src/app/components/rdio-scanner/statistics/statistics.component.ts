@@ -61,8 +61,6 @@ interface Stats {
             <div class="card"><div class="k">Peak hour</div><div class="v">{{ stats.total ? hourLabel(stats.peakHour) : '—' }}</div></div>
         </div>
 
-        <div class="layout">
-        <section class="s-chart">
         <h3>Calls per hour</h3>
         <div class="chart">
             <div class="yaxis">
@@ -77,8 +75,6 @@ interface Stats {
             </div>
         </div>
 
-        </section>
-        <section class="s-top">
         <h3>Top 10 talkgroups</h3>
         <div *ngIf="selectedDay !== null" class="selection">
             {{ stats.heatDates[selectedDay] }} · {{ hourLabel(selectedHour) }}–{{ hourLabel(selectedHour + 1) }}
@@ -92,8 +88,6 @@ interface Stats {
             <span class="count">{{ t.count | number }}</span>
         </div>
 
-        </section>
-        <section class="s-heat">
         <h3>Busiest days &amp; hours (last 7 days)</h3>
         <div class="heat">
             <div class="hrow head"><span></span><span *ngFor="let h of hours">{{ h % 3 === 0 ? h : '' }}</span></div>
@@ -106,34 +100,25 @@ interface Stats {
                     [style.background-color]="heatColor(c, heatMax())" [title]="stats.heatDates[di] + ' ' + hourLabel(h) + ': ' + c + ' calls'"></button>
             </div>
         </div>
-        </section>
-        </div>
         <p class="note">Ranked by number of calls. Updated at most every 5 minutes.</p>
     </ng-container>
 </div>`,
     styles: [`
-.stats { padding: 4px 8px; max-width: 1200px; margin: 0 auto; box-sizing: border-box; }
-.stats h3 { margin: 8px 0 6px; font-size: 15px; }
+.stats { padding: 4px 8px; max-width: 900px; }
+.stats h3 { margin: 6px 0 4px; font-size: 15px; }
 .filters ::ng-deep .mat-form-field-wrapper { padding-bottom: 0; margin: 0; }
-.filters mat-form-field { width: 180px; max-width: 100%; }
-.layout { display: grid; grid-template-columns: 1fr; gap: 0 24px; }
-.s-chart { grid-area: chart; } .s-top { grid-area: top; } .s-heat { grid-area: heat; }
-.layout { grid-template-areas: "chart" "top" "heat"; }
-@media (min-width: 820px) {
-  .layout { grid-template-columns: 1fr 1fr; grid-template-areas: "chart top" "heat top"; align-items: start; }
-}
 .stats.admin { --scanner-control-surface: #fff; --scanner-control-ink: rgba(0, 0, 0, 0.87); }
 .stats.admin .filters mat-form-field { border: 1px solid rgba(0, 0, 0, .3); }
 .stats { --filter-surface: var(--scanner-control-surface, rgb(30, 30, 30)); --filter-ink: var(--scanner-control-ink, #fff); }
 .filters mat-form-field { background: var(--filter-surface); color: var(--filter-ink); padding: 6px 8px 0; border-radius: 3px; }
 .filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 6px 0 4px; }
-.card { border: 1px solid rgba(128,128,128,.4); border-radius: 6px; padding: 4px 10px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 6px 0 4px; }
+.card { border: 1px solid rgba(128,128,128,.4); border-radius: 6px; padding: 3px 10px; }
 .card .k { font-size: 12px; opacity: .7; }
-.card .v { font-size: 20px; font-weight: 600; line-height: 1.2; }
-.card .v.small { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .v { font-size: 20px; font-weight: 600; line-height: 1.15; }
+.card .v.small { font-size: 15px; }
 .card .d { font-size: 12px; opacity: .8; }
-.chart { display: flex; height: clamp(100px, 19vh, 190px); margin-bottom: 22px; }
+.chart { display: flex; height: clamp(90px, 15vh, 160px); margin-bottom: 20px; }
 .yaxis { position: relative; width: 40px; font-size: 10px; }
 .yaxis span { position: absolute; right: 4px; transform: translateY(50%); }
 .plot { position: relative; flex: 1; display: flex; align-items: flex-end; gap: 2px; border-left: 1px solid rgba(128,128,128,.5); border-bottom: 1px solid rgba(128,128,128,.5); }
@@ -143,7 +128,7 @@ interface Stats {
 .bar.now { background: rgba(30, 136, 229, .18); box-shadow: 0 0 0 1px #1e88e5; border-radius: 2px; }
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
-.top { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 13px; }
+.top { display: flex; align-items: center; gap: 8px; padding: 0; font-size: 12px; line-height: 18px; }
 .rank { width: 20px; text-align: right; opacity: .7; }
 .name { width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name small { opacity: .6; }
@@ -156,10 +141,10 @@ interface Stats {
 .day { font-size: 11px; }
 .day.today { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; text-align: center; }
 .hrow.today { background: rgba(30, 136, 229, .12); border-radius: 3px; }
-.cell.mat-button { height: clamp(14px, 2.4vh, 20px); min-width: 0; padding: 0; line-height: 1; border-radius: 2px; }
+.cell.mat-button { height: clamp(12px, 2.2vh, 18px); min-width: 0; padding: 0; line-height: 1; border-radius: 2px; }
 .cell.selected { outline: 2px solid currentColor; outline-offset: 1px; }
-.selection { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; font-size: 13px; }
-.note { font-size: 11px; opacity: .6; margin: 6px 0 0; }
+.selection { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; flex-wrap: wrap; font-size: 12px; }
+.note { font-size: 11px; opacity: .6; margin: 4px 0 0; }
 .error { color: #e53935; }
 `],
 })
