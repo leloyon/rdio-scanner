@@ -127,7 +127,7 @@ interface Stats {
 .bar.now { background: rgba(30, 136, 229, .18); box-shadow: 0 0 0 1px #1e88e5; border-radius: 2px; }
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
-.top { display: flex; align-items: center; gap: 8px; padding: 0; font-size: 12px; line-height: 18px; }
+.top { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .rank { width: 20px; text-align: right; opacity: .7; }
 .name { width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name small { opacity: .6; }
@@ -142,7 +142,7 @@ interface Stats {
 .hrow.today { background: rgba(30, 136, 229, .12); border-radius: 3px; }
 .cell.mat-button { height: clamp(12px, 2.2vh, 18px); min-width: 0; padding: 0; line-height: 1; border-radius: 2px; }
 .cell.selected { outline: 2px solid currentColor; outline-offset: 1px; }
-.selection { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; flex-wrap: wrap; font-size: 12px; }
+.selection { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
 .note { font-size: 11px; opacity: .6; margin: 4px 0 0; }
 .error { color: #e53935; }
 `],
