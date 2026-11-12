@@ -84,7 +84,6 @@ export class RdioScannerService implements OnDestroy {
     private audioSourceStartTime = NaN;
 
     private beepContext: AudioContext | undefined;
-    private beepKeepAlive: AudioBufferSourceNode | undefined;
 
     private call: RdioScannerCall | undefined;
     private callPrevious: RdioScannerCall | undefined;
@@ -232,57 +231,39 @@ export class RdioScannerService implements OnDestroy {
 
     beep(style = RdioScannerBeepStyle.Activate): Promise<void> {
         return new Promise((resolve) => {
+            const context = this.beepContext;
+
             const seq = this.config.keypadBeeps && this.config.keypadBeeps[style];
 
-            if (!this.beepContext || !seq) {
+            if (!context || !seq) {
                 resolve();
 
                 return;
             }
 
-            const play = () => {
-                const context = this.beepContext;
+            const gn = context.createGain();
 
-                if (!context) {
-                    resolve();
+            gn.gain.value = .1;
 
-                    return;
+            gn.connect(context.destination);
+
+            seq.forEach((beep, index) => {
+                const osc = context.createOscillator();
+
+                osc.connect(gn);
+
+                osc.frequency.value = beep.frequency;
+
+                osc.type = beep.type;
+
+                if (index === seq.length - 1) {
+                    osc.onended = () => resolve();
                 }
 
-                const gn = context.createGain();
+                osc.start(context.currentTime + beep.begin);
 
-                gn.gain.value = .1;
-
-                gn.connect(context.destination);
-
-                // Short lead-in so the output device has time to wake before the first tone.
-                const lead = 0.03;
-
-                seq.forEach((beep, index) => {
-                    const osc = context.createOscillator();
-
-                    osc.connect(gn);
-
-                    osc.frequency.value = beep.frequency;
-
-                    osc.type = beep.type;
-
-                    if (index === seq.length - 1) {
-                        osc.onended = () => resolve();
-                    }
-
-                    osc.start(context.currentTime + lead + beep.begin);
-
-                    osc.stop(context.currentTime + lead + beep.end);
-                });
-            };
-
-            // A suspended context has a stopped clock: tones scheduled on it are delayed or lost.
-            if (this.beepContext.state === 'running') {
-                play();
-            } else {
-                this.beepContext.resume().then(play, () => resolve());
-            }
+                osc.stop(context.currentTime + beep.end);
+            });
         });
     }
 
@@ -753,8 +734,6 @@ export class RdioScannerService implements OnDestroy {
                 this.beepContext = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
             }
 
-            this.startBeepKeepAlive();
-
             if (this.audioContext) {
                 const resume = () => {
                     if (!this.livefeedPaused) {
@@ -787,45 +766,6 @@ export class RdioScannerService implements OnDestroy {
         };
 
         events.forEach((event) => document.body.addEventListener(event, bootstrap));
-
-        // Any later click/tap/key wakes the beep context again if the browser suspended it.
-        const wake = () => {
-            const context = this.beepContext;
-
-            if (context && (context.state as string) !== 'running' && (context.state as string) !== 'closed') {
-                context.resume().catch(() => { });
-            }
-        };
-
-        ['pointerdown', 'keydown', 'touchstart'].forEach((event) => document.body.addEventListener(event, wake, { passive: true }));
-    }
-
-    // Plays an inaudible (about -74 dBFS) noise floor so the sound device never idles to sleep and
-    // clips the start of the very short button beeps. Not digital silence, which devices treat as idle.
-    private startBeepKeepAlive(): void {
-        const context = this.beepContext;
-
-        if (!context || this.beepKeepAlive) {
-            return;
-        }
-
-        try {
-            const buffer = context.createBuffer(1, context.sampleRate, context.sampleRate);
-            const data = buffer.getChannelData(0);
-
-            for (let i = 0; i < data.length; i++) {
-                data[i] = (Math.random() * 2 - 1) * 0.0002;
-            }
-
-            const source = context.createBufferSource();
-
-            source.buffer = buffer;
-            source.loop = true;
-            source.connect(context.destination);
-            source.start();
-
-            this.beepKeepAlive = source;
-        } catch { }
     }
 
     private cleanQueue(): void {
