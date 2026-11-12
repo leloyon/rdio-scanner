@@ -31,17 +31,17 @@ interface Stats {
 @Component({
     selector: 'rdio-scanner-statistics',
     template: `
-<div class="stats">
+<div class="stats" [class.admin]="admin">
     <div class="filters">
         <mat-form-field class="scanner-theme-control">
             <mat-label>Time range</mat-label>
-            <mat-select panelClass="scanner-theme-menu" [(value)]="range" (selectionChange)="load()">
+            <mat-select [panelClass]="admin ? '' : 'scanner-theme-menu'" [(value)]="range" (selectionChange)="load()">
                 <mat-option *ngFor="let r of ranges" [value]="r.v">{{ r.l }}</mat-option>
             </mat-select>
         </mat-form-field>
         <mat-form-field class="scanner-theme-control">
             <mat-label>System</mat-label>
-            <mat-select panelClass="scanner-theme-menu" [(value)]="system" (selectionChange)="load()">
+            <mat-select [panelClass]="admin ? '' : 'scanner-theme-menu'" [(value)]="system" (selectionChange)="load()">
                 <mat-option [value]="0">All systems</mat-option>
                 <mat-option *ngFor="let s of stats?.systems" [value]="s.id">{{ s.label }}</mat-option>
             </mat-select>
@@ -68,9 +68,9 @@ interface Stats {
             </div>
             <div class="plot">
                 <div class="grid" *ngFor="let t of ticks()" [style.bottom.%]="t / axisMax() * 100"></div>
-                <div class="bar" *ngFor="let c of stats.hourly; let h = index" [title]="hourLabel(h) + ': ' + c + ' calls'">
+                <div class="bar" *ngFor="let c of stats.hourly; let h = index" [class.now]="h === nowHour()" [title]="hourLabel(h) + ': ' + c + ' calls' + (h === nowHour() ? ' (current hour)' : '')">
                     <div class="fill" [style.height.%]="c / axisMax() * 100" [style.background-color]="heatColor(c, barMax())"></div>
-                    <span class="x">{{ h }}</span>
+                    <span class="x" [class.now]="h === nowHour()">{{ h }}</span>
                 </div>
             </div>
         </div>
@@ -91,8 +91,8 @@ interface Stats {
         <h3>Busiest days &amp; hours (last 7 days)</h3>
         <div class="heat">
             <div class="hrow head"><span></span><span *ngFor="let h of hours">{{ h % 3 === 0 ? h : '' }}</span></div>
-            <div class="hrow" *ngFor="let d of days; let di = index">
-                <span class="day">{{ d }}</span>
+            <div class="hrow" *ngFor="let d of days; let di = index" [class.today]="isToday(di)">
+                <span class="day" [class.today]="isToday(di)" [title]="isToday(di) ? 'Today' : ''">{{ d }}</span>
                 <button mat-button *ngFor="let c of stats.heatmap[di]; let h = index" class="cell"
                     (click)="selectCell(di, h)" [class.selected]="selectedDay === di && selectedHour === h"
                     [attr.aria-pressed]="selectedDay === di && selectedHour === h"
@@ -105,6 +105,8 @@ interface Stats {
 </div>`,
     styles: [`
 .stats { padding: 8px; max-width: 900px; }
+.stats.admin { --scanner-control-surface: #fff; --scanner-control-ink: rgba(0, 0, 0, 0.87); }
+.stats.admin .filters mat-form-field { border: 1px solid rgba(0, 0, 0, .3); }
 .stats { --filter-surface: var(--scanner-control-surface, rgb(30, 30, 30)); --filter-ink: var(--scanner-control-ink, #fff); }
 .filters mat-form-field { background: var(--filter-surface); color: var(--filter-ink); padding: 6px 8px 0; border-radius: 3px; }
 .filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
@@ -121,6 +123,8 @@ interface Stats {
 .grid { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(128,128,128,.2); }
 .bar { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; }
 .fill { width: 100%; background: currentColor; border-radius: 2px 2px 0 0; }
+.bar.now { background: rgba(30, 136, 229, .18); box-shadow: 0 0 0 1px #1e88e5; border-radius: 2px; }
+.x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
 .top { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .rank { width: 20px; text-align: right; opacity: .7; }
@@ -133,6 +137,8 @@ interface Stats {
 .hrow { display: grid; grid-template-columns: 36px repeat(24, minmax(12px, 1fr)); gap: 2px; margin-bottom: 2px; }
 .hrow.head span { font-size: 9px; text-align: center; }
 .day { font-size: 11px; }
+.day.today { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; text-align: center; }
+.hrow.today { background: rgba(30, 136, 229, .12); border-radius: 3px; }
 .cell.mat-button { height: 20px; min-width: 0; padding: 0; line-height: 20px; border-radius: 2px; }
 .cell.selected { outline: 2px solid currentColor; outline-offset: 1px; }
 .selection { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
@@ -214,6 +220,24 @@ export class RdioScannerStatisticsComponent {
         const f = t - i;
         const rgb = stops[i].map((v, k) => Math.round(v + (stops[i + 1][k] - v) * f));
         return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }
+
+    // "Now" in the server's timezone: stats are bucketed server-side, so take the UTC offset from
+    // the server's timestamp (cachedAt) and apply it to the browser clock.
+    private serverNow(): Date {
+        const m = /([+-])(\d{2}):?(\d{2})$/.exec(this.stats?.cachedAt || '');
+        const offMin = m ? (m[1] === '-' ? -1 : 1) * (parseInt(m[2], 10) * 60 + parseInt(m[3], 10)) : 0;
+        // Fields read with getUTC*() then equal the server's local date/time.
+        return new Date(Date.now() + offMin * 60000);
+    }
+
+    nowHour(): number {
+        return this.stats ? this.serverNow().getUTCHours() : -1;
+    }
+
+    isToday(row: number): boolean {
+        if (!this.stats) return false;
+        return this.stats.heatDates[row] === this.serverNow().toISOString().slice(0, 10);
     }
 
     hourLabel(h: number): string {
