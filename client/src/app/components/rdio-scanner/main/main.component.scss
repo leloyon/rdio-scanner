@@ -273,6 +273,16 @@
 :host([data-theme="blue"]) { --lcd-bg: #101d29; --lcd-ink: #a5dfff; --lcd-idle: #0b141d; }
 :host([data-theme="white"]) { --lcd-bg: #171b1a; --lcd-ink: #e6f5ec; --lcd-idle: #101312; }
 :host([data-theme="oled"]) { --lcd-bg: #000000; --lcd-ink: #e0e3e5; --lcd-idle: #000000; }
+:host([data-theme="neon"]) { --lcd-bg: #0b0720; --lcd-ink: #00f5e4; --lcd-idle: #07041a; }
+:host([data-theme="synth"]) { --lcd-bg: #1f1035; --lcd-ink: #ff7edb; --lcd-idle: #170b29; }
+:host([data-theme="solar"]) { --lcd-bg: #002b36; --lcd-ink: #a6b8b8; --lcd-idle: #00212b; }
+:host([data-theme="dracula"]) { --lcd-bg: #282a36; --lcd-ink: #bd93f9; --lcd-idle: #1e2029; }
+:host([data-theme="matrix"]) { --lcd-bg: #000a00; --lcd-ink: #00ff41; --lcd-idle: #000600; }
+:host([data-theme="ocean"]) { --lcd-bg: #04202e; --lcd-ink: #7fe7d6; --lcd-idle: #031820; }
+:host([data-theme="forest"]) { --lcd-bg: #1a2314; --lcd-ink: #d6e8a8; --lcd-idle: #131a0f; }
+:host([data-theme="hotrod"]) { --lcd-bg: #26120a; --lcd-ink: #ff9f5a; --lcd-idle: #1c0d07; }
+:host([data-theme="sakura"]) { --lcd-bg: #2a1a22; --lcd-ink: #ffb7d5; --lcd-idle: #20131a; }
+:host([data-theme="paper"]) { --lcd-bg: #f4efe3; --lcd-ink: #2b2a26; --lcd-idle: #e9e3d3; }
 :host:not([data-theme="default"]) {
   .rdio-display { background: var(--lcd-bg); color: var(--lcd-ink); }
   .rdio-display.idle { background: var(--lcd-idle); }

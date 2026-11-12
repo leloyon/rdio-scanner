@@ -55,6 +55,16 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
         { id: 'blue', label: 'Cruiser Blue' },
         { id: 'white', label: 'CRT Phosphor White' },
         { id: 'oled', label: 'Midnight OLED' },
+        { id: 'neon', label: 'Cyberpunk Neon' },
+        { id: 'synth', label: 'Synthwave Sunset' },
+        { id: 'solar', label: 'Solarized Dusk' },
+        { id: 'dracula', label: 'Royal Purple' },
+        { id: 'matrix', label: 'Matrix Terminal' },
+        { id: 'ocean', label: 'Deep Ocean' },
+        { id: 'forest', label: 'Forest Ranger' },
+        { id: 'hotrod', label: 'Hot Rod Orange' },
+        { id: 'sakura', label: 'Sakura Pink' },
+        { id: 'paper', label: 'Paper Light' },
     ];
     private originalTitle = document.title;
 

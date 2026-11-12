@@ -17,7 +17,7 @@ If the browser shows old controls, hard-refresh or clear this site's cache.
 ## Included
 - Existing v4 duplicate/file-stability fixes, defaults 3584 bytes and 180 seconds.
 - Existing admin statistics, public-statistics toggle (off by default), maintenance tools and mobile-prompt removal.
-- Seven browser display themes, saved locally; playback-volume slider below buttons.
+- Seventeen browser display themes, saved locally; playback-volume slider below buttons.
 - Live browser tab call title, restored on pause/silence; STATS uses the stock keypad beep setting.
 - Click a heatmap square for its date/hour top 10 talkgroups; Reset restores the range ranking.
   Heatmap covers today and the preceding six calendar days in the server's timezone.
@@ -64,7 +64,7 @@ go build -o rdio-scanner_v5.1.exe .
 Passed Go tests for inherited duplicate/prune rules, four conversion modes,
 71-second synthetic audio, mono/32kbps MP3, decoding, error preservation,
 defaults, heatmap ranking/system/hour filters, and cache reuse.
-Browser checks passed all seven theme choices, saved theme/volume, heatmap
+Browser checks passed all seventeen theme choices, saved theme/volume, heatmap
 selection/reset, stored-call playback, live title/pause restoration and 390px layout.
 An unmodified official 6.6.3 program created a test database; v5 started on a
 copy without changing its schema, talkgroup rows, or audio hashes.

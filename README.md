@@ -39,7 +39,7 @@ Accurate Admin Captions: Updated the Audio Conversion descriptions in the Admin 
 Prune Talkgroup Tools added to the admin panel, used to clean up phantom IDs (e.g., short decode errors or anomalous IDs) and unnamed talkgroups that aren't named. Calls are preserved regardless. 
 
 # 5. Changes to the browser Web Player (Again, this won't function in your rdio-scanner app. Only if you use a browser on PC or your phone:
-7 Custom Display Themes: Added an on-page dropdown with 7 colorways (Default, Vintage Amber LCD, Night Ops Green, Tactical Night Red, Cruiser Blue, Phosphor CRT White, and Midnight OLED), saved locally in the browser. Changes the color of the "LCD" panel only. 
+17 Custom Display Themes: Added an on-page dropdown with 17 colorways (Default, Vintage Amber LCD, Night Ops Green, Tactical Night Red, Cruiser Blue, Phosphor CRT White, Midnight OLED, Cyberpunk Neon, Synthwave Sunset, Solarized Dusk, Royal Purple, Matrix Terminal, Deep Ocean, Forest Ranger, Hot Rod Orange, Sakura Pink, and Paper Light), saved locally in the browser. Changes the color of the "LCD" panel only. 
 
 Main Screen Volume Slider: Added an on-screen slider positioned below the control buttons, using a Web Audio API gain node with volume saved in localStorage.
 
