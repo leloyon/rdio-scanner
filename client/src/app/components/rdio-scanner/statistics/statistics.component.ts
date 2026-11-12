@@ -106,7 +106,6 @@ interface Stats {
     styles: [`
 .stats { padding: 4px 8px; max-width: 900px; }
 .stats h3 { margin: 6px 0 4px; font-size: 15px; }
-.filters ::ng-deep .mat-form-field-wrapper { padding-bottom: 0; margin: 0; }
 .stats.admin { --scanner-control-surface: #fff; --scanner-control-ink: rgba(0, 0, 0, 0.87); }
 .stats.admin .filters mat-form-field { border: 1px solid rgba(0, 0, 0, .3); }
 .stats { --filter-surface: var(--scanner-control-surface, rgb(30, 30, 30)); --filter-ink: var(--scanner-control-ink, #fff); }
@@ -135,7 +134,7 @@ interface Stats {
 .meter { flex: 1; height: 8px; background: rgba(128,128,128,.2); border-radius: 4px; overflow: hidden; }
 .meter span { display: block; height: 100%; }
 .count { width: 60px; text-align: right; }
-.heat { overflow-x: auto; }
+.heat { overflow-x: auto; padding: 3px 6px 3px 3px; }
 .hrow { display: grid; grid-template-columns: 36px repeat(24, minmax(12px, 1fr)); gap: 2px; margin-bottom: 2px; }
 .hrow.head span { font-size: 9px; text-align: center; }
 .day { font-size: 11px; }
