@@ -1,7 +1,8 @@
 // Per-talkgroup audio normalization (custom v5.1).
 //
-// The "Normalize Talkgroups" option lists the talkgroups whose new calls are normalized,
-// whatever the global Audio Conversion choice is (unless conversion is Disabled).
+// The "Normalize Talkgroups" option lists the talkgroups whose new calls are converted and
+// normalized, whatever the global Audio Conversion choice is. This includes Disabled: with
+// conversion Disabled, only the listed talkgroups are converted; the others are left untouched.
 //
 // Entries are separated by commas, semicolons, spaces or new lines:
 //
@@ -22,7 +23,7 @@ import (
 // effectiveAudioMode returns the audio conversion mode to use for a call: the global mode,
 // unless the call's system/talkgroup is listed in the normalize list.
 func effectiveAudioMode(global uint, list string, system, talkgroup uint) uint {
-	if global == AUDIO_CONVERSION_DISABLED || strings.TrimSpace(list) == "" {
+	if strings.TrimSpace(list) == "" {
 		return global
 	}
 

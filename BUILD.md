@@ -31,8 +31,9 @@ If the browser shows old controls, hard-refresh or clear this site's cache.
 - Optional "Normalize Talkgroups" setting (Admin > Config > Options, under Audio Conversion):
   list `system:talkgroup` entries (comma, space or line separated) to normalize only those
   talkgroups' new calls, e.g. `1:101`, `1:101:loud`, or `1:*` for a whole system. Stored inside the
-  existing options JSON, so the database schema is unchanged; empty by default. Ignored when
-  Audio Conversion is Disabled. Logic is in server/normalize.go (unit tested).
+  existing options JSON, so the database schema is unchanged; empty by default. Listed talkgroups are
+  converted and normalized even when Audio Conversion is Disabled (all others are then left
+  untouched). Logic is in server/normalize.go (unit tested).
 - No squelch sound changes.
 
 ## Build the complete source ZIP
