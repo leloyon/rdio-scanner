@@ -28,7 +28,12 @@ If the browser shows old controls, hard-refresh or clear this site's cache.
   normalization needs FFmpeg 4.3 or newer, as in upstream.
   Failures keep original audio and report the conversion error.
 - Existing stored recordings are not re-encoded or repaired retroactively.
-- No per-talkgroup normalization or squelch sound changes.
+- Optional "Normalize Talkgroups" setting (Admin > Config > Options, under Audio Conversion):
+  list `system:talkgroup` entries (comma, space or line separated) to normalize only those
+  talkgroups' new calls, e.g. `1:101`, `1:101:loud`, or `1:*` for a whole system. Stored inside the
+  existing options JSON, so the database schema is unchanged; empty by default. Ignored when
+  Audio Conversion is Disabled. Logic is in server/normalize.go (unit tested).
+- No squelch sound changes.
 
 ## Build the complete source ZIP
 The ZIP contains the complete already-modified official release source, not

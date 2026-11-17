@@ -131,6 +131,7 @@ export interface LogsQueryOptions {
 export interface Options {
     afsSystems?: string;
     audioConversion?: 0 | 1 | 2 | 3;
+    normalizeTalkgroups?: string;
     autoPopulate?: boolean;
     branding?: string;
     dimmerDelay?: number;
@@ -501,6 +502,7 @@ export class RdioScannerAdminService implements OnDestroy {
         return this.ngFormBuilder.group({
             afsSystems: [options?.afsSystems, this.validateAfsSystems()],
             audioConversion: [options?.audioConversion],
+            normalizeTalkgroups: [options?.normalizeTalkgroups ?? ''],
             autoPopulate: [options?.autoPopulate],
             branding: [options?.branding],
             dimmerDelay: [options?.dimmerDelay, [Validators.required, Validators.min(0)]],

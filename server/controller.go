@@ -278,7 +278,7 @@ func (controller *Controller) IngestCall(call *Call) {
 		return
 	}
 
-	if err := controller.FFMpeg.Convert(call, controller.Systems, controller.Tags, controller.Options.AudioConversion); err != nil {
+	if err := controller.FFMpeg.Convert(call, controller.Systems, controller.Tags, effectiveAudioMode(controller.Options.AudioConversion, controller.Options.NormalizeTalkgroups, call.System, call.Talkgroup)); err != nil {
 		controller.Logs.LogEvent(LogLevelWarn, err.Error())
 	}
 

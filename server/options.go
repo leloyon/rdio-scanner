@@ -38,6 +38,7 @@ type Options struct {
 	Email                       string `json:"email"`
 	KeypadBeeps                 string `json:"keypadBeeps"`
 	MaxClients                  uint   `json:"maxClients"`
+	NormalizeTalkgroups         string `json:"normalizeTalkgroups"`
 	PlaybackGoesLive            bool   `json:"playbackGoesLive"`
 	PruneDays                   uint   `json:"pruneDays"`
 	SearchPatchedTalkgroups     bool   `json:"searchPatchedTalkgroups"`
@@ -85,6 +86,11 @@ func (options *Options) FromMap(m map[string]any) *Options {
 		options.AutoPopulate = v
 	default:
 		options.AutoPopulate = defaults.options.autoPopulate
+	}
+
+	switch v := m["normalizeTalkgroups"].(type) {
+	case string:
+		options.NormalizeTalkgroups = v
 	}
 
 	switch v := m["branding"].(type) {
@@ -278,6 +284,11 @@ func (options *Options) Read(db *Database) error {
 				options.AutoPopulate = v
 			}
 
+			switch v := m["normalizeTalkgroups"].(type) {
+			case string:
+				options.NormalizeTalkgroups = v
+			}
+
 			switch v := m["branding"].(type) {
 			case string:
 				options.Branding = v
@@ -428,6 +439,7 @@ func (options *Options) Write(db *Database) error {
 		"publicStatistics":            options.PublicStatistics,
 		"keypadBeeps":                 options.KeypadBeeps,
 		"maxClients":                  options.MaxClients,
+		"normalizeTalkgroups":         options.NormalizeTalkgroups,
 		"playbackGoesLive":            options.PlaybackGoesLive,
 		"pruneDays":                   options.PruneDays,
 		"searchPatchedTalkgroups":     options.SearchPatchedTalkgroups,

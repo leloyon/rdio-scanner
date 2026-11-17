@@ -37,6 +37,18 @@
     </div>
     <div class="row">
         <p>
+            <span class="mat-body">Normalize Talkgroups</span><br>
+            <span class="mat-caption">Normalize only these talkgroups, whatever the Audio Conversion choice above
+                (it must not be Disabled). One entry per line or comma separated, as <b>system:talkgroup</b>
+                using the Ids shown in the config, e.g. <b>1:101</b>. Add <b>:loud</b> for loud normalization
+                (<b>1:101:loud</b>), or use <b>1:*</b> for a whole system. New calls only; requires FFmpeg 4.3 or newer.</span>
+        </p>
+        <mat-form-field floatLabel="never">
+            <textarea type="text" matInput formControlName="normalizeTalkgroups" placeholder="1:101, 1:205:loud"></textarea>
+        </mat-form-field>
+    </div>
+    <div class="row">
+        <p>
             <span class="mat-body">Auto Populate</span><br>
             <span class="mat-caption">Globaly allows the automatic creation of unconfigured systems and
                 talkgroups.</span>
