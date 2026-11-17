@@ -22,6 +22,8 @@ Loudness Normalization Preserved: Both Standard and Loud normalization continue 
 
 Fail-Safe Ingest: If FFmpeg conversion fails, the original audio file is retained and logged rather than dropped.
 
+New Talkgroup-specified normalization: Now you can specify which talkgroups you'd like converted and normalized.
+
 # Statistics & Activity Dashboard:
 Statistics Engine & RAM Cache: Built-in read-only analytics endpoint cached in memory for 5 minutes, ensuring zero performance impact on live listeners.
 
