@@ -100,6 +100,22 @@
             </mat-error>
         </mat-form-field>
     </div>
+    <div class="row">
+        <p>
+            <span class="mat-body">Normalize audio</span><br>
+            <span class="mat-caption">Adds or removes this talkgroup in Options &rarr; Normalize Talkgroups and saves the
+                config right away. New calls only; requires FFmpeg 4.3 or newer.<ng-container *ngIf="normalizeViaSystem">
+                Already covered by a system-wide entry.</ng-container></span>
+            <span class="mat-caption" *ngIf="normalizeStatus"><br>{{ normalizeStatus }}</span>
+        </p>
+        <mat-form-field floatLabel="never">
+            <mat-select [value]="normalizeMode" (selectionChange)="setNormalize($event.value)" placeholder="Normalize audio">
+                <mat-option value="off">Off (use global setting)</mat-option>
+                <mat-option value="norm">Normalize</mat-option>
+                <mat-option value="loud">Loud normalize</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
     <div class="row bottom">
         <button *ngIf="form.get('id')?.value" type="button" mat-button (click)="blacklist.emit()">
             Blacklist talkgroup

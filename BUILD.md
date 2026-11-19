@@ -34,6 +34,11 @@ If the browser shows old controls, hard-refresh or clear this site's cache.
   existing options JSON, so the database schema is unchanged; empty by default. Listed talkgroups are
   converted and normalized even when Audio Conversion is Disabled (all others are then left
   untouched). Logic is in server/normalize.go (unit tested).
+- Talkgroup editor: a "Normalize audio" selector (Off / Normalize / Loud normalize) adds or removes that
+  talkgroup's `system:talkgroup` entry in the option above and saves the config immediately.
+- Statistics: Refresh bypasses the 5-minute server cache and an "Updated ... ago" label shows data age;
+  the Calls per hour chart has a "usual for that hour" tick (average of the previous 6 days, single-day
+  ranges only) and, on Last 24 hours, a dashed divider between today and yesterday.
 - No squelch sound changes.
 
 ## Build the complete source ZIP

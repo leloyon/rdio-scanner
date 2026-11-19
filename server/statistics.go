@@ -56,10 +56,11 @@ func (controller *Controller) countCalls(from, to time.Time, system uint) uint {
 	return n
 }
 
-func (controller *Controller) BuildStatistics(rangeName string, system uint) ([]byte, error) {
+// force skips the cache read (the fresh result is still cached); used by the Refresh button.
+func (controller *Controller) BuildStatistics(rangeName string, system uint, force bool) ([]byte, error) {
 	key := fmt.Sprintf("%s|%d", rangeName, system)
 	statsCacheMutex.Lock()
-	if e, ok := statsCache[key]; ok && time.Since(e.at) < statsCacheTTL {
+	if e, ok := statsCache[key]; ok && !force && time.Since(e.at) < statsCacheTTL {
 		statsCacheMutex.Unlock()
 		return e.data, nil
 	}
@@ -138,6 +139,22 @@ func (controller *Controller) BuildStatistics(rangeName string, system uint) ([]
 		hrows.Close()
 	}
 
+	// "usual" calls for each hour: the average over the 6 full days before today
+	// (today is excluded because it is not finished). Used for the chart's usual-hour markers.
+	usual := make([]float64, 24)
+	todayStr := now.Format("2006-01-02")
+	for wd := 0; wd < 7; wd++ {
+		if heatDates[wd] == todayStr {
+			continue
+		}
+		for h := 0; h < 24; h++ {
+			usual[h] += float64(heat[wd][h])
+		}
+	}
+	for h := range usual {
+		usual[h] = float64(int(usual[h]/6*10+0.5)) / 10
+	}
+
 	type tgStat struct {
 		System      uint   `json:"system"`
 		SystemLabel string `json:"systemLabel"`
@@ -198,6 +215,7 @@ func (controller *Controller) BuildStatistics(rangeName string, system uint) ([]
 		"total":     total,
 		"previous":  controller.countCalls(pfrom, pto, system),
 		"hourly":    hourly,
+		"usual":     usual,
 		"peakHour":  peak,
 		"top":       top,
 		"heatmap":   heat,
@@ -236,7 +254,7 @@ func (controller *Controller) StatisticsHandler(w http.ResponseWriter, r *http.R
 	if v, err := strconv.Atoi(r.URL.Query().Get("system")); err == nil && v > 0 {
 		system = uint(v)
 	}
-	b, err := controller.BuildStatistics(rangeName, system)
+	b, err := controller.BuildStatistics(rangeName, system, r.URL.Query().Get("refresh") == "1")
 	if err != nil {
 		controller.Logs.LogEvent(LogLevelError, fmt.Sprintf("statistics: %v", err))
 		w.WriteHeader(http.StatusExpectationFailed)

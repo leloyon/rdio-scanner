@@ -3,7 +3,7 @@
  * Read-only; the server caches results for 5 minutes.
  */
 
-import { Component, Input, NgModule } from '@angular/core';
+import { Component, Input, NgModule, OnDestroy } from '@angular/core';
 import { AppSharedModule } from '../../../shared/shared.module';
 
 interface TopTalkgroup {
@@ -20,6 +20,7 @@ interface Stats {
     total: number;
     previous: number;
     hourly: number[];
+    usual?: number[];
     peakHour: number;
     top: TopTalkgroup[];
     heatmap: number[][];
@@ -47,7 +48,8 @@ interface Stats {
                 <mat-option *ngFor="let s of stats?.systems" [value]="s.id">{{ s.label }}</mat-option>
             </mat-select>
         </mat-form-field>
-        <button mat-stroked-button (click)="load()">Refresh</button>
+        <button mat-stroked-button (click)="load(true)">Refresh</button>
+        <span class="updated" *ngIf="stats?.cachedAt">Updated {{ updatedAgo() }}</span>
     </div>
 
     <div *ngIf="error" class="error">{{ error }}</div>
@@ -62,15 +64,19 @@ interface Stats {
             <div class="card"><div class="k">Peak hour</div><div class="v">{{ stats.total ? hourLabel(stats.peakHour) : '—' }}</div></div>
         </div>
 
-        <h3>Calls per hour <span class="sub" *ngIf="stats.range === '24h'">· last 24 hours (lighter bars = yesterday)</span></h3>
+        <h3>Calls per hour <span class="sub" *ngIf="chartNote()">· {{ chartNote() }}</span></h3>
         <div class="chart">
             <div class="yaxis">
                 <span *ngFor="let t of ticks()" [style.bottom.%]="t / axisMax() * 100">{{ t }}</span>
             </div>
             <div class="plot">
                 <div class="grid" *ngFor="let t of ticks()" [style.bottom.%]="t / axisMax() * 100"></div>
-                <div class="bar" *ngFor="let c of stats.hourly; let h = index" [class.now]="h === nowHour()" [class.prev]="stats.range === '24h' && h > nowHour()" [title]="hourLabel(h) + ': ' + c + ' calls' + (h === nowHour() ? ' (current hour)' : '') + (stats.range === '24h' && h > nowHour() ? ' (yesterday)' : '')">
+                <div class="divider" *ngIf="stats.range === '24h' && nowHour() < 23" [style.left.%]="(nowHour() + 1) / 24 * 100">
+                    <span class="l">today</span><span class="r">yesterday</span>
+                </div>
+                <div class="bar" *ngFor="let c of stats.hourly; let h = index" [class.now]="h === nowHour()" [title]="hourLabel(h) + ': ' + c + ' calls' + (showUsual() ? ' (usual ' + (stats.usual?.[h] ?? 0) + ')' : '') + (h === nowHour() ? ' (current hour)' : '') + (stats.range === '24h' && h > nowHour() ? ' (yesterday)' : '')">
                     <div class="fill" [style.height.%]="c / axisMax() * 100" [style.background-color]="heatColor(c, barMax())"></div>
+                    <div class="usual" *ngIf="showUsual() && (stats.usual?.[h] ?? 0) > 0" [style.bottom.%]="(stats.usual?.[h] ?? 0) / axisMax() * 100"></div>
                     <span class="x" [class.now]="h === nowHour()">{{ h }}</span>
                 </div>
             </div>
@@ -126,7 +132,12 @@ interface Stats {
 .bar { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; }
 .fill { width: 100%; background: currentColor; border-radius: 2px 2px 0 0; }
 .sub { font-size: 12px; font-weight: 400; opacity: .7; }
-.bar.prev .fill { opacity: .5; }
+.usual { position: absolute; left: 8%; right: 8%; height: 0; border-top: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .65); pointer-events: none; }
+.divider { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed #1e88e5; z-index: 2; pointer-events: none; }
+.divider span { position: absolute; top: 1px; font-size: 10px; font-weight: 600; color: #1e88e5; white-space: nowrap; }
+.divider .l { right: 4px; }
+.divider .r { left: 4px; }
+.updated { font-size: 12px; opacity: .7; margin-left: 8px; }
 .bar.now { background: rgba(30, 136, 229, .18); box-shadow: 0 0 0 1px #1e88e5; border-radius: 2px; }
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
@@ -150,7 +161,7 @@ interface Stats {
 .error { color: #e53935; }
 `],
 })
-export class RdioScannerStatisticsComponent {
+export class RdioScannerStatisticsComponent implements OnDestroy {
     @Input() admin = false;
 
     days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -165,6 +176,8 @@ export class RdioScannerStatisticsComponent {
     range = '24h';
     system = 0;
     stats: Stats | undefined;
+    private clock = Date.now();
+    private clockTimer = setInterval(() => { this.clock = Date.now(); }, 30000);
     loading = false;
     error = '';
     selectedDay: number | null = null;
@@ -175,7 +188,31 @@ export class RdioScannerStatisticsComponent {
         return this.selectedDay === null ? (this.stats?.top || []) : (this.stats?.heatTop[this.selectedDay][this.selectedHour] || []);
     }
 
-    async load(): Promise<void> {
+    ngOnDestroy(): void {
+        clearInterval(this.clockTimer);
+    }
+
+    // "Updated 3 min ago", from the server's own timestamp for the cached result.
+    updatedAgo(): string {
+        const t = Date.parse(this.stats?.cachedAt || '');
+        if (isNaN(t)) return '';
+        const min = Math.floor(Math.max(0, this.clock - t) / 60000);
+        return min < 1 ? 'just now' : min === 1 ? '1 min ago' : `${min} min ago`;
+    }
+
+    // Usual-hour markers only make sense when the bars are a single day's counts.
+    showUsual(): boolean {
+        return !!this.stats?.usual && ['today', 'yesterday', '24h'].includes(this.stats.range || '');
+    }
+
+    chartNote(): string {
+        const parts: string[] = [];
+        if (this.stats?.range === '24h') parts.push('last 24 hours');
+        if (this.showUsual()) parts.push('tick = usual for that hour (average of the previous 6 days)');
+        return parts.join(' · ');
+    }
+
+    async load(force = false): Promise<void> {
         this.clearSelection();
         this.loading = true;
         this.error = '';
@@ -184,7 +221,7 @@ export class RdioScannerStatisticsComponent {
             const headers: Record<string, string> = {};
             const token = window.sessionStorage?.getItem('rdio-scanner-admin-token');
             if (token) headers['Authorization'] = token;
-            const res = await fetch(`${base}/api/statistics?range=${this.range}&system=${this.system}`, { headers });
+            const res = await fetch(`${base}/api/statistics?range=${this.range}&system=${this.system}${force ? '&refresh=1' : ''}`, { headers });
             if (!res.ok) throw new Error(res.status === 401 ? 'Statistics are not available.' : `Error ${res.status}`);
             this.stats = await res.json();
         } catch (e: any) {
@@ -194,7 +231,7 @@ export class RdioScannerStatisticsComponent {
     }
 
     axisMax(): number {
-        const m = Math.max(0, ...(this.stats?.hourly || [0]));
+        const m = Math.max(0, ...(this.stats?.hourly || [0]), ...(this.showUsual() ? (this.stats?.usual || []) : []));
         return Math.max(10, Math.ceil(m / 10) * 10);
     }
 
