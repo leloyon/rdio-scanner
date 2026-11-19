@@ -16,6 +16,7 @@ interface TopTalkgroup {
 }
 
 interface Stats {
+    range?: string;
     total: number;
     previous: number;
     hourly: number[];
@@ -61,7 +62,7 @@ interface Stats {
             <div class="card"><div class="k">Peak hour</div><div class="v">{{ stats.total ? hourLabel(stats.peakHour) : '—' }}</div></div>
         </div>
 
-        <h3>Calls per hour</h3>
+        <h3>{{ stats.range === '24h' ? 'Calls per hour (today so far)' : 'Calls per hour' }}</h3>
         <div class="chart">
             <div class="yaxis">
                 <span *ngFor="let t of ticks()" [style.bottom.%]="t / axisMax() * 100">{{ t }}</span>
