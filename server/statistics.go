@@ -68,7 +68,6 @@ func (controller *Controller) BuildStatistics(rangeName string, system uint) ([]
 	db := controller.Database
 	now := time.Now()
 	from, to, pfrom, pto := statsRange(rangeName, now)
-	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	q := "select `dateTime`, `system`, `talkgroup` from `rdioScannerCalls` where `dateTime` between ? and ?"
 	args := []any{from.UTC().Format(db.DateTimeFormat), to.UTC().Format(db.DateTimeFormat)}
@@ -97,12 +96,7 @@ func (controller *Controller) BuildStatistics(rangeName string, system uint) ([]
 			continue
 		}
 		total++
-		// For the rolling "24h" range the hourly chart only counts today's calls (since local
-		// midnight), so hours that have not happened yet today stay empty instead of showing
-		// yesterday's calls. Totals and the top list still cover the whole range.
-		if rangeName != "24h" || !t.Before(dayStart) {
-			hourly[t.Local().Hour()]++
-		}
+		hourly[t.Local().Hour()]++
 		tgCount[[2]uint{sys, tg}]++
 	}
 	rows.Close()
