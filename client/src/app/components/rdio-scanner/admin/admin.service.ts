@@ -128,6 +128,22 @@ export interface LogsQueryOptions {
     sort: number;
 }
 
+export interface UpdateRelease {
+    tag: string;
+    name: string;
+    published: string;
+    url: string;
+    assetName?: string;
+    assetUrl?: string;
+    assetSize?: number;
+}
+
+export interface UpdateInfo {
+    status: 'current' | 'available' | 'unknown' | 'error';
+    current?: UpdateRelease;
+    latest?: UpdateRelease;
+}
+
 export interface Options {
     afsSystems?: string;
     audioConversion?: 0 | 1 | 2 | 3;
@@ -192,6 +208,7 @@ enum url {
     logout = 'logout',
     logs = 'logs',
     password = 'password',
+    updateCheck = 'update-check',
 }
 
 const SESSION_STORAGE_KEY = 'rdio-scanner-admin-token';
@@ -295,6 +312,18 @@ export class RdioScannerAdminService implements OnDestroy {
 
     getLeds(): string[] {
         return ['blue', 'cyan', 'green', 'magenta', 'orange', 'red', 'white', 'yellow'];
+    }
+
+    // Asks the server whether a newer release is published on GitHub. Failures are silent.
+    async checkForUpdate(): Promise<UpdateInfo | undefined> {
+        try {
+            return await firstValueFrom(this.ngHttpClient.get<UpdateInfo>(
+                this.getUrl(url.updateCheck),
+                { headers: this.getHeaders(), responseType: 'json' },
+            ));
+        } catch {
+            return undefined;
+        }
     }
 
     async getLogs(options: LogsQueryOptions): Promise<LogsQuery | undefined> {

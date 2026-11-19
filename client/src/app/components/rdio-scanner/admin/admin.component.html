@@ -2,6 +2,18 @@
     <rdio-scanner-admin-login></rdio-scanner-admin-login>
 </ng-container>
 <ng-container *ngIf="authenticated">
+    <div class="update-banner" *ngIf="updateAvailable as u">
+        <mat-icon>system_update</mat-icon>
+        <div class="update-text">
+            <strong>A new version is available: {{ u.latest?.name }}</strong>
+            <span *ngIf="u.current">&nbsp;(you are running {{ u.current?.name }})</span>
+            <span *ngIf="u.latest?.published">&nbsp;&middot; published {{ u.latest?.published | date: 'mediumDate' }}</span>
+        </div>
+        <a *ngIf="u.latest?.assetUrl" mat-flat-button color="primary" [href]="u.latest?.assetUrl">
+            Download {{ u.latest?.assetName }}
+        </a>
+        <a mat-stroked-button [href]="u.latest?.url" target="_blank" rel="noopener">Release page</a>
+    </div>
     <rdio-scanner-admin-todos></rdio-scanner-admin-todos>
     <mat-accordion displayMode="flat">
         <mat-expansion-panel #configPanel (afterCollapse)="configComponent?.closeAll()">

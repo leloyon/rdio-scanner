@@ -18,7 +18,7 @@
  */
 
 import { Component, OnDestroy, ViewEncapsulation } from '@angular/core';
-import { AdminEvent, RdioScannerAdminService, Group, Tag } from './admin.service';
+import { AdminEvent, RdioScannerAdminService, Group, Tag, UpdateInfo } from './admin.service';
 
 @Component({
     encapsulation: ViewEncapsulation.None,
@@ -33,13 +33,30 @@ export class RdioScannerAdminComponent implements OnDestroy {
 
     tags: Tag[] = [];
 
+    // Set only when a newer release than the running exe is published on GitHub.
+    updateAvailable: UpdateInfo | undefined;
+
     private eventSubscription = this.adminService.event.subscribe(async (event: AdminEvent) => {
         if ('authenticated' in event) {
             this.authenticated = event.authenticated || false;
+
+            if (this.authenticated) {
+                this.checkForUpdate();
+            }
         }
     });
 
-    constructor(private adminService: RdioScannerAdminService) { }
+    constructor(private adminService: RdioScannerAdminService) {
+        if (this.authenticated) {
+            this.checkForUpdate();
+        }
+    }
+
+    private async checkForUpdate(): Promise<void> {
+        const info = await this.adminService.checkForUpdate();
+
+        this.updateAvailable = info?.status === 'available' ? info : undefined;
+    }
 
     ngOnDestroy(): void {
         this.eventSubscription.unsubscribe();

@@ -117,6 +117,8 @@ func main() {
 
 	http.HandleFunc("/api/admin/talkgroups-prune", controller.Admin.TalkgroupsPruneHandler)
 
+	http.HandleFunc("/api/admin/update-check", controller.Admin.UpdateCheckHandler)
+
 	http.HandleFunc("/api/statistics", controller.StatisticsHandler)
 
 	http.HandleFunc("/api/admin/user-add", controller.Admin.UserAddHandler)
