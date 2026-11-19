@@ -16,6 +16,7 @@ interface TopTalkgroup {
 }
 
 interface Stats {
+    range?: string;
     total: number;
     previous: number;
     hourly: number[];
@@ -61,14 +62,14 @@ interface Stats {
             <div class="card"><div class="k">Peak hour</div><div class="v">{{ stats.total ? hourLabel(stats.peakHour) : '—' }}</div></div>
         </div>
 
-        <h3>Calls per hour</h3>
+        <h3>Calls per hour <span class="sub" *ngIf="stats.range === '24h'">· last 24 hours (lighter bars = yesterday)</span></h3>
         <div class="chart">
             <div class="yaxis">
                 <span *ngFor="let t of ticks()" [style.bottom.%]="t / axisMax() * 100">{{ t }}</span>
             </div>
             <div class="plot">
                 <div class="grid" *ngFor="let t of ticks()" [style.bottom.%]="t / axisMax() * 100"></div>
-                <div class="bar" *ngFor="let c of stats.hourly; let h = index" [class.now]="h === nowHour()" [title]="hourLabel(h) + ': ' + c + ' calls' + (h === nowHour() ? ' (current hour)' : '')">
+                <div class="bar" *ngFor="let c of stats.hourly; let h = index" [class.now]="h === nowHour()" [class.prev]="stats.range === '24h' && h > nowHour()" [title]="hourLabel(h) + ': ' + c + ' calls' + (h === nowHour() ? ' (current hour)' : '') + (stats.range === '24h' && h > nowHour() ? ' (yesterday)' : '')">
                     <div class="fill" [style.height.%]="c / axisMax() * 100" [style.background-color]="heatColor(c, barMax())"></div>
                     <span class="x" [class.now]="h === nowHour()">{{ h }}</span>
                 </div>
@@ -124,6 +125,8 @@ interface Stats {
 .grid { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(128,128,128,.2); }
 .bar { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; }
 .fill { width: 100%; background: currentColor; border-radius: 2px 2px 0 0; }
+.sub { font-size: 12px; font-weight: 400; opacity: .7; }
+.bar.prev .fill { opacity: .5; }
 .bar.now { background: rgba(30, 136, 229, .18); box-shadow: 0 0 0 1px #1e88e5; border-radius: 2px; }
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
