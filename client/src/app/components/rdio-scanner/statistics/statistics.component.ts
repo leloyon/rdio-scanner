@@ -48,8 +48,7 @@ interface Stats {
                 <mat-option *ngFor="let s of stats?.systems" [value]="s.id">{{ s.label }}</mat-option>
             </mat-select>
         </mat-form-field>
-        <button mat-stroked-button (click)="load(true)">Refresh</button>
-        <span class="updated" *ngIf="stats?.cachedAt">Updated {{ updatedAgo() }}</span>
+        <span class="updated" *ngIf="stats?.cachedAt">Updated {{ updatedAgo() }} · next update {{ nextUpdate() }}</span>
     </div>
 
     <div *ngIf="error" class="error">{{ error }}</div>
@@ -132,13 +131,12 @@ interface Stats {
 .bar { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; }
 .fill { width: 100%; background: currentColor; border-radius: 2px 2px 0 0; }
 .sub { font-size: 12px; font-weight: 400; opacity: .7; }
-.usual { position: absolute; left: 8%; right: 8%; height: 0; border-top: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .65); pointer-events: none; }
+.usual { position: absolute; left: 6%; right: 6%; height: 0; border-top: 2px solid currentColor; opacity: .65; pointer-events: none; }
 .divider { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed #1e88e5; z-index: 2; pointer-events: none; }
 .divider span { position: absolute; top: 1px; font-size: 10px; font-weight: 600; color: #1e88e5; white-space: nowrap; }
 .divider .l { right: 4px; }
 .divider .r { left: 4px; }
 .updated { font-size: 12px; opacity: .7; margin-left: 8px; }
-.bar.now { background: rgba(30, 136, 229, .18); box-shadow: 0 0 0 1px #1e88e5; border-radius: 2px; }
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
 .top { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
@@ -177,7 +175,8 @@ export class RdioScannerStatisticsComponent implements OnDestroy {
     system = 0;
     stats: Stats | undefined;
     private clock = Date.now();
-    private clockTimer = setInterval(() => { this.clock = Date.now(); }, 30000);
+    private busy = false;
+    private clockTimer = setInterval(() => { this.clock = Date.now(); this.autoRefresh(); }, 15000);
     loading = false;
     error = '';
     selectedDay: number | null = null;
@@ -200,6 +199,25 @@ export class RdioScannerStatisticsComponent implements OnDestroy {
         return min < 1 ? 'just now' : min === 1 ? '1 min ago' : `${min} min ago`;
     }
 
+    // The server keeps each result for 5 minutes; this is when the next one is available.
+    private static readonly refreshMs = 5 * 60 * 1000;
+
+    nextUpdate(): string {
+        const t = Date.parse(this.stats?.cachedAt || '');
+        if (isNaN(t)) return '';
+        const ms = t + RdioScannerStatisticsComponent.refreshMs - this.clock;
+        if (ms <= 0) return 'any moment';
+        const min = Math.ceil(ms / 60000);
+        return min <= 1 ? 'in about a minute' : `in about ${min} min`;
+    }
+
+    // Quietly reloads once the cached result has expired (no "Loading…", keeps the selected heatmap cell).
+    private autoRefresh(): void {
+        const t = Date.parse(this.stats?.cachedAt || '');
+        if (this.loading || this.busy || isNaN(t) || this.clock < t + RdioScannerStatisticsComponent.refreshMs + 2000) return;
+        this.load(true);
+    }
+
     // Usual-hour markers only make sense when the bars are a single day's counts.
     showUsual(): boolean {
         return !!this.stats?.usual && ['today', 'yesterday', '24h'].includes(this.stats.range || '');
@@ -208,26 +226,36 @@ export class RdioScannerStatisticsComponent implements OnDestroy {
     chartNote(): string {
         const parts: string[] = [];
         if (this.stats?.range === '24h') parts.push('last 24 hours');
-        if (this.showUsual()) parts.push('tick = usual for that hour (average of the previous 6 days)');
+        if (this.showUsual()) parts.push('line = usual for that hour (average of the previous 6 days)');
         return parts.join(' · ');
     }
 
-    async load(force = false): Promise<void> {
-        this.clearSelection();
-        this.loading = true;
-        this.error = '';
+    async load(silent = false): Promise<void> {
+        if (silent) {
+            if (this.busy) return;
+        } else {
+            this.clearSelection();
+            this.loading = true;
+            this.error = '';
+        }
+        this.busy = true;
+        const range = this.range;
+        const system = this.system;
         try {
             const base = window.location.href.replace(/[#?].*$/, '').replace(/\/+$/, '').replace(/\/admin$/, '');
             const headers: Record<string, string> = {};
             const token = window.sessionStorage?.getItem('rdio-scanner-admin-token');
             if (token) headers['Authorization'] = token;
-            const res = await fetch(`${base}/api/statistics?range=${this.range}&system=${this.system}${force ? '&refresh=1' : ''}`, { headers });
+            const res = await fetch(`${base}/api/statistics?range=${range}&system=${system}`, { headers });
             if (!res.ok) throw new Error(res.status === 401 ? 'Statistics are not available.' : `Error ${res.status}`);
-            this.stats = await res.json();
+            const data = await res.json();
+            // Ignore a quiet update that finished after the user changed the range or system.
+            if (!silent || (range === this.range && system === this.system)) this.stats = data;
         } catch (e: any) {
-            this.error = e?.message || 'Unable to load statistics';
+            if (!silent) this.error = e?.message || 'Unable to load statistics';
         }
-        this.loading = false;
+        this.busy = false;
+        if (!silent) this.loading = false;
     }
 
     axisMax(): number {

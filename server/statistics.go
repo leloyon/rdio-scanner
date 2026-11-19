@@ -56,11 +56,10 @@ func (controller *Controller) countCalls(from, to time.Time, system uint) uint {
 	return n
 }
 
-// force skips the cache read (the fresh result is still cached); used by the Refresh button.
-func (controller *Controller) BuildStatistics(rangeName string, system uint, force bool) ([]byte, error) {
+func (controller *Controller) BuildStatistics(rangeName string, system uint) ([]byte, error) {
 	key := fmt.Sprintf("%s|%d", rangeName, system)
 	statsCacheMutex.Lock()
-	if e, ok := statsCache[key]; ok && !force && time.Since(e.at) < statsCacheTTL {
+	if e, ok := statsCache[key]; ok && time.Since(e.at) < statsCacheTTL {
 		statsCacheMutex.Unlock()
 		return e.data, nil
 	}
@@ -254,7 +253,7 @@ func (controller *Controller) StatisticsHandler(w http.ResponseWriter, r *http.R
 	if v, err := strconv.Atoi(r.URL.Query().Get("system")); err == nil && v > 0 {
 		system = uint(v)
 	}
-	b, err := controller.BuildStatistics(rangeName, system, r.URL.Query().Get("refresh") == "1")
+	b, err := controller.BuildStatistics(rangeName, system)
 	if err != nil {
 		controller.Logs.LogEvent(LogLevelError, fmt.Sprintf("statistics: %v", err))
 		w.WriteHeader(http.StatusExpectationFailed)

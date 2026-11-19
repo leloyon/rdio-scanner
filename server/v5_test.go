@@ -109,7 +109,7 @@ func TestV5HeatmapRanking(t *testing.T) {
 	statsCacheMutex.Lock()
 	statsCache = map[string]statsCacheEntry{}
 	statsCacheMutex.Unlock()
-	b, err := c.BuildStatistics("7d", 1, false)
+	b, err := c.BuildStatistics("7d", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,19 +138,8 @@ func TestV5HeatmapRanking(t *testing.T) {
 	if len(got.Usual) != 24 || got.Usual[15] != 0.5 || got.Usual[16] != 0.2 || got.Usual[3] != 0 {
 		t.Fatalf("usual wrong: %v", got.Usual)
 	}
-	cached, err := c.BuildStatistics("7d", 1, false)
+	cached, err := c.BuildStatistics("7d", 1)
 	if err != nil || !bytes.Equal(cached, b) {
 		t.Fatal("cache failed")
-	}
-	// A refresh (force) must bypass the cache and see a call added since.
-	if _, err := db.Exec("insert into rdioScannerCalls values(?,?,?)", d.UTC().Format(format), 1, 505); err != nil {
-		t.Fatal(err)
-	}
-	if again, err := c.BuildStatistics("7d", 1, false); err != nil || !bytes.Equal(again, b) {
-		t.Fatal("cache should still be served without force")
-	}
-	fresh, err := c.BuildStatistics("7d", 1, true)
-	if err != nil || bytes.Equal(fresh, b) {
-		t.Fatal("force did not bypass the cache")
 	}
 }
