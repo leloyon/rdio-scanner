@@ -103,8 +103,8 @@
     <div class="row">
         <p>
             <span class="mat-body">Normalize audio</span><br>
-            <span class="mat-caption">Adds or removes this talkgroup in Options &rarr; Normalize Talkgroups and saves the
-                config right away. New calls only; requires FFmpeg 4.3 or newer.<ng-container *ngIf="normalizeViaSystem">
+            <span class="mat-caption">Adds or removes this talkgroup in Options &rarr; Normalize Talkgroups. Press the
+                config's Save button to apply. New calls only; requires FFmpeg 4.3 or newer.<ng-container *ngIf="normalizeViaSystem">
                 Already covered by a system-wide entry.</ng-container></span>
             <span class="mat-caption" *ngIf="normalizeStatus"><br>{{ normalizeStatus }}</span>
         </p>

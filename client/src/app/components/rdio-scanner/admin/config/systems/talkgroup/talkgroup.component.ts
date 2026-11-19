@@ -43,7 +43,7 @@ export class RdioScannerAdminTalkgroupComponent {
     }
 
     // Per-talkgroup audio normalization: edits the "Normalize Talkgroups" option (system:talkgroup
-    // entries) and saves the config, exactly like the Save button would.
+    // entries). It only edits the form; press the config's Save button to apply it.
     normalizeStatus = '';
 
     private get normalizeControl(): AbstractControl | null {
@@ -72,7 +72,7 @@ export class RdioScannerAdminTalkgroupComponent {
         return !!key && this.normalizeMode === 'off' && this.normalizeEntries().some((e) => e.split(':')[0] === key.split(':')[0] && e.split(':')[1] === '*');
     }
 
-    async setNormalize(mode: 'off' | 'norm' | 'loud'): Promise<void> {
+    setNormalize(mode: 'off' | 'norm' | 'loud'): void {
         const key = this.normalizeKey;
         const control = this.normalizeControl;
         const root = this.form?.root;
@@ -89,14 +89,7 @@ export class RdioScannerAdminTalkgroupComponent {
         control.markAsDirty();
         root.markAsDirty();
 
-        if (root.invalid) {
-            this.normalizeStatus = 'Added to the list. Fix the errors in the config, then press Save.';
-            return;
-        }
-
-        root.markAsPristine();
-        await this.adminService.saveConfig((root as FormGroup).getRawValue());
-        this.normalizeStatus = mode === 'off' ? `Removed ${key} and saved.` : `Added ${key} and saved.`;
+        this.normalizeStatus = mode === 'off' ? `Removed ${key}. Press Save to apply.` : `Added ${key}. Press Save to apply.`;
     }
 
     constructor(private adminService: RdioScannerAdminService) { }
