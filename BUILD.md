@@ -39,7 +39,7 @@ If the browser shows old controls, hard-refresh or clear this site's cache.
 - Statistics: no Refresh button; an "Updated ... ago / next update in ..." label shows data age and the page
   quietly reloads when the server's 5-minute cache expires. The Calls per hour chart has a semi-transparent
   "usual for that hour" line (average of the previous 6 days, single-day ranges only) and, on Last 24
-  hours, the bars after the current hour are yesterday's calls (the current hour is marked in blue).
+  hours, a dashed line marks the current hour, with "yesterday" labelling the bars after it.
 - Update notice: when an admin opens the panel, the server (at most every 30 minutes) reads the latest
   GitHub Releases of leloyon/rdio-scanner and matches its own exe's SHA-256 against the release assets'
   digests. If a newer release exists, a banner with a download link appears at the top of the admin page.

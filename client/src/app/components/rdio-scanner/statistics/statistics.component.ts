@@ -70,6 +70,9 @@ interface Stats {
             </div>
             <div class="plot">
                 <div class="grid" *ngFor="let t of ticks()" [style.bottom.%]="t / axisMax() * 100"></div>
+                <div class="divider" *ngIf="stats.range === '24h' && nowHour() < 23" [style.left.%]="(nowHour() + 1) / 24 * 100">
+                    <span>yesterday</span>
+                </div>
                 <div class="bar" *ngFor="let c of stats.hourly; let h = index" [class.now]="h === nowHour()" [title]="hourLabel(h) + ': ' + c + ' calls' + (showUsual() ? ' (usual ' + (stats.usual?.[h] ?? 0) + ')' : '') + (h === nowHour() ? ' (current hour)' : '') + (stats.range === '24h' && h > nowHour() ? ' (yesterday)' : '')">
                     <div class="fill" [style.height.%]="c / axisMax() * 100" [style.background-color]="heatColor(c, barMax())"></div>
                     <div class="usual" *ngIf="showUsual() && (stats.usual?.[h] ?? 0) > 0" [style.bottom.%]="(stats.usual?.[h] ?? 0) / axisMax() * 100"></div>
@@ -129,6 +132,8 @@ interface Stats {
 .fill { width: 100%; background: currentColor; border-radius: 2px 2px 0 0; }
 .sub { font-size: 12px; font-weight: 400; opacity: .7; }
 .usual { position: absolute; left: 6%; right: 6%; height: 0; border-top: 2px solid currentColor; opacity: .65; pointer-events: none; }
+.divider { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed #1e88e5; z-index: 2; pointer-events: none; }
+.divider span { position: absolute; top: 1px; left: 4px; font-size: 10px; font-weight: 600; color: #1e88e5; white-space: nowrap; }
 .updated { font-size: 12px; opacity: .7; margin-left: 8px; }
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
