@@ -40,6 +40,8 @@ If the browser shows old controls, hard-refresh or clear this site's cache.
   quietly reloads when the server's 5-minute cache expires. The Calls per hour chart has a semi-transparent
   "usual for that hour" line (average of the previous 6 days, single-day ranges only) and, on Last 24
   hours, a dashed line marks the current hour, with "today" and "yesterday" labels on either side.
+- Statistics: a "Time format" selector (24-hour or 12-hour AM/PM) changes every hour label on the page; the
+  choice is remembered per browser (localStorage).
 - Update notice: when an admin opens the panel, the server (at most every 30 minutes) reads the latest
   GitHub Releases of leloyon/rdio-scanner and matches its own exe's SHA-256 against the release assets'
   digests. If a newer release exists, a banner with a download link appears at the top of the admin page.

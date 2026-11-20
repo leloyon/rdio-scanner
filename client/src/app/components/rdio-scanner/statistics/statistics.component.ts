@@ -33,7 +33,7 @@ interface Stats {
 @Component({
     selector: 'rdio-scanner-statistics',
     template: `
-<div class="stats" [class.admin]="admin">
+<div class="stats" [class.admin]="admin" [class.twelve]="timeFormat === '12'">
     <div class="filters">
         <mat-form-field class="scanner-theme-control">
             <mat-label>Time range</mat-label>
@@ -46,6 +46,13 @@ interface Stats {
             <mat-select [panelClass]="admin ? '' : 'scanner-theme-menu'" [(value)]="system" (selectionChange)="load()">
                 <mat-option [value]="0">All systems</mat-option>
                 <mat-option *ngFor="let s of stats?.systems" [value]="s.id">{{ s.label }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+        <mat-form-field class="scanner-theme-control">
+            <mat-label>Time format</mat-label>
+            <mat-select [panelClass]="admin ? '' : 'scanner-theme-menu'" [value]="timeFormat" (selectionChange)="setTimeFormat($event.value)">
+                <mat-option value="24">24-hour</mat-option>
+                <mat-option value="12">12-hour (AM/PM)</mat-option>
             </mat-select>
         </mat-form-field>
         <span class="updated" *ngIf="stats?.cachedAt">Updated {{ updatedAgo() }} · next update {{ nextUpdate() }}</span>
@@ -78,7 +85,7 @@ interface Stats {
                 <div class="bar" *ngFor="let c of stats.hourly; let h = index" [class.now]="h === nowHour()" [title]="hourLabel(h) + ': ' + c + ' calls' + (showUsual() ? ' (usual ' + (stats.usual?.[h] ?? 0) + ')' : '') + (h === nowHour() ? ' (current hour)' : '') + (stats.range === '24h' && h > nowHour() ? ' (yesterday)' : '')">
                     <div class="fill" [style.height.%]="c / axisMax() * 100" [style.background-color]="heatColor(c, barMax())"></div>
                     <div class="usual" *ngIf="showUsual() && (stats.usual?.[h] ?? 0) > 0" [style.bottom.%]="(stats.usual?.[h] ?? 0) / axisMax() * 100"></div>
-                    <span class="x" [class.now]="h === nowHour()">{{ h }}</span>
+                    <span class="x" [class.now]="h === nowHour()">{{ axisHour(h) }}<small *ngIf="timeFormat === '12'">{{ h < 12 ? 'am' : 'pm' }}</small></span>
                 </div>
             </div>
         </div>
@@ -98,7 +105,7 @@ interface Stats {
 
         <h3>Busiest days &amp; hours (last 7 days)</h3>
         <div class="heat">
-            <div class="hrow head"><span></span><span *ngFor="let h of hours">{{ h % 3 === 0 ? h : '' }}</span></div>
+            <div class="hrow head"><span></span><span *ngFor="let h of hours">{{ h % 3 === 0 ? axisHourShort(h) : '' }}</span></div>
             <div class="hrow" *ngFor="let d of days; let di = index" [class.today]="isToday(di)">
                 <span class="day" [class.today]="isToday(di)" [title]="isToday(di) ? 'Today' : ''">{{ d }}</span>
                 <button mat-button *ngFor="let c of stats.heatmap[di]; let h = index" class="cell"
@@ -140,6 +147,8 @@ interface Stats {
 .daylabels .y { flex: 1; padding-left: 8px; text-align: left; }
 .updated { font-size: 12px; opacity: .7; margin-left: 8px; }
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
+.x small { display: block; font-size: 8px; line-height: 9px; opacity: .8; }
+.stats.twelve .chart { margin-bottom: 30px; }
 .x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
 .top { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .rank { width: 20px; text-align: right; opacity: .7; }
@@ -150,7 +159,7 @@ interface Stats {
 .count { width: 60px; text-align: right; }
 .heat { overflow-x: auto; padding: 3px 6px 3px 3px; }
 .hrow { display: grid; grid-template-columns: 36px repeat(24, minmax(12px, 1fr)); gap: 2px; margin-bottom: 2px; }
-.hrow.head span { font-size: 9px; text-align: center; }
+.hrow.head span { font-size: 9px; text-align: center; white-space: nowrap; overflow: visible; }
 .day { font-size: 11px; }
 .day.today { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; text-align: center; }
 .hrow.today { background: rgba(30, 136, 229, .12); border-radius: 3px; }
@@ -320,8 +329,50 @@ export class RdioScannerStatisticsComponent implements OnDestroy {
         return this.stats.heatDates[row] === this.serverNow().toISOString().slice(0, 10);
     }
 
+    // 24-hour or 12-hour (AM/PM) clock, chosen by the viewer and remembered in this browser.
+    timeFormat: '24' | '12' = this.loadTimeFormat();
+
+    private loadTimeFormat(): '24' | '12' {
+        try {
+            return localStorage.getItem('rdio-scanner-stats-time-format') === '12' ? '12' : '24';
+        } catch {
+            return '24';
+        }
+    }
+
+    setTimeFormat(value: '24' | '12'): void {
+        this.timeFormat = value === '12' ? '12' : '24';
+        try {
+            localStorage.setItem('rdio-scanner-stats-time-format', this.timeFormat);
+        } catch { }
+    }
+
+    private hour12(h: number): { n: number; ap: string } {
+        const x = ((h % 24) + 24) % 24;
+        return { n: x % 12 || 12, ap: x < 12 ? 'AM' : 'PM' };
+    }
+
+    // "15:00" or "3 PM".
     hourLabel(h: number): string {
+        if (this.timeFormat === '12') {
+            const t = this.hour12(h);
+            return `${t.n} ${t.ap}`;
+        }
         return `${String(h).padStart(2, '0')}:00`;
+    }
+
+    // Hour number under each bar; the am/pm goes on a second line in 12-hour mode.
+    axisHour(h: number): string {
+        return String(this.timeFormat === '12' ? this.hour12(h).n : h);
+    }
+
+    // Heatmap column headers: "15" or "3pm".
+    axisHourShort(h: number): string {
+        if (this.timeFormat === '12') {
+            const t = this.hour12(h);
+            return `${t.n}${t.ap.toLowerCase()}`;
+        }
+        return String(h);
     }
 
     change(): string {
