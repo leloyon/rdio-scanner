@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
@@ -116,6 +117,7 @@ func TestV5HeatmapRanking(t *testing.T) {
 	var got struct {
 		Total     uint
 		Usual     []float64
+		Tz        string
 		HeatDates []string
 		Heatmap   [][]uint
 		HeatTop   [][][]struct {
@@ -134,9 +136,13 @@ func TestV5HeatmapRanking(t *testing.T) {
 	if len(got.HeatTop[day][16]) != 1 || got.HeatTop[day][16][0].Talkgroup != 303 {
 		t.Fatal("hours leaked")
 	}
-	// usual: average over the 6 full days before today (3 calls at 15:00 and 1 at 16:00 yesterday)
-	if len(got.Usual) != 24 || got.Usual[15] != 0.5 || got.Usual[16] != 0.2 || got.Usual[3] != 0 {
+	// usual: average over the previous days that have calls. Only yesterday has data (3 calls
+	// at 15:00 and 1 at 16:00 for system 1), so it is divided by 1 day, not by 6.
+	if len(got.Usual) != 24 || got.Usual[15] != 3 || got.Usual[16] != 1 || got.Usual[3] != 0 {
 		t.Fatalf("usual wrong: %v", got.Usual)
+	}
+	if !strings.Contains(got.Tz, "(UTC") {
+		t.Fatalf("tz wrong: %q", got.Tz)
 	}
 	cached, err := c.BuildStatistics("7d", 1)
 	if err != nil || !bytes.Equal(cached, b) {

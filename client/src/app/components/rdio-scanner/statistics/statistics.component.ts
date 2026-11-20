@@ -21,6 +21,7 @@ interface Stats {
     previous: number;
     hourly: number[];
     usual?: number[];
+    tz?: string;
     peakHour: number;
     top: TopTalkgroup[];
     heatmap: number[][];
@@ -55,6 +56,7 @@ interface Stats {
                 <mat-option value="12">12-hour (AM/PM)</mat-option>
             </mat-select>
         </mat-form-field>
+        <span class="updated" *ngIf="stats?.tz">Times in server time: {{ stats?.tz }}</span>
         <span class="updated" *ngIf="stats?.cachedAt">Updated {{ updatedAgo() }} · next update {{ nextUpdate() }}</span>
     </div>
 
@@ -104,6 +106,10 @@ interface Stats {
         </div>
 
         <h3>Busiest days &amp; hours (last 7 days)</h3>
+        <div class="extremes" *ngIf="dayExtremes() as e">
+            <span>Busiest day: <b>{{ e.busiest.label }}</b> · {{ e.busiest.total | number }} calls (peak {{ hourLabel(e.busiest.peak) }})</span>
+            <span>Quietest day: <b>{{ e.quietest.label }}</b> · {{ e.quietest.total | number }} calls</span>
+        </div>
         <div class="heat">
             <div class="hrow head"><span></span><span *ngFor="let h of hours">{{ h % 3 === 0 ? axisHourShort(h) : '' }}</span></div>
             <div class="hrow" *ngFor="let d of days; let di = index" [class.today]="isToday(di)">
@@ -145,6 +151,7 @@ interface Stats {
 .daylabels { position: absolute; top: 1px; left: 0; right: 0; height: 12px; display: flex; z-index: 2; pointer-events: none; font-size: 10px; line-height: 12px; font-weight: 600; color: #1e88e5; white-space: nowrap; }
 .daylabels .t { flex: none; box-sizing: border-box; padding-right: 6px; text-align: right; }
 .daylabels .y { flex: 1; padding-left: 8px; text-align: left; }
+.extremes { display: flex; flex-wrap: wrap; gap: 2px 20px; font-size: 12px; margin: 0 0 6px; }
 .updated { font-size: 12px; opacity: .7; margin-left: 8px; }
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x small { display: block; font-size: 8px; line-height: 9px; opacity: .8; }
@@ -237,7 +244,7 @@ export class RdioScannerStatisticsComponent implements OnDestroy {
     chartNote(): string {
         const parts: string[] = [];
         if (this.stats?.range === '24h') parts.push('last 24 hours');
-        if (this.showUsual()) parts.push('line = usual for that hour (average of the previous 6 days)');
+        if (this.showUsual()) parts.push('line = usual for that hour (average of the previous days with calls, up to 6)');
         return parts.join(' · ');
     }
 
@@ -327,6 +334,21 @@ export class RdioScannerStatisticsComponent implements OnDestroy {
     isToday(row: number): boolean {
         if (!this.stats) return false;
         return this.stats.heatDates[row] === this.serverNow().toISOString().slice(0, 10);
+    }
+
+    // Busiest and quietest of the 6 full days before today (today is still in progress).
+    dayExtremes(): { busiest: { label: string; total: number; peak: number }; quietest: { label: string; total: number } } | undefined {
+        const heat = this.stats?.heatmap;
+        if (!heat || !this.stats?.heatDates) return undefined;
+        const rows = heat.map((r, di) => ({ di, total: r.reduce((a, b) => a + b, 0) })).filter((r) => !this.isToday(r.di));
+        if (rows.length < 2) return undefined;
+        const busiest = rows.reduce((a, b) => (b.total > a.total ? b : a));
+        const quietest = rows.reduce((a, b) => (b.total < a.total ? b : a));
+        if (busiest.total === 0 || busiest.di === quietest.di) return undefined;
+        const label = (di: number) => `${this.days[di]} ${this.stats?.heatDates[di]}`;
+        const row = heat[busiest.di];
+        const peak = row.indexOf(Math.max(...row));
+        return { busiest: { label: label(busiest.di), total: busiest.total, peak }, quietest: { label: label(quietest.di), total: quietest.total } };
     }
 
     // 24-hour or 12-hour (AM/PM) clock, chosen by the viewer and remembered in this browser.

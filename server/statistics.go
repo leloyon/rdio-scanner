@@ -138,20 +138,31 @@ func (controller *Controller) BuildStatistics(rangeName string, system uint) ([]
 		hrows.Close()
 	}
 
-	// "usual" calls for each hour: the average over the 6 full days before today
-	// (today is excluded because it is not finished). Used for the chart's usual-hour markers.
+	// "usual" calls for each hour: the average over the full days before today (today is excluded
+	// because it is not finished), counting only days that actually have calls, so a young
+	// database or an outage day does not drag the average down. At most the 6 previous days.
 	usual := make([]float64, 24)
 	todayStr := now.Format("2006-01-02")
+	usualDays := 0
 	for wd := 0; wd < 7; wd++ {
 		if heatDates[wd] == todayStr {
 			continue
 		}
+		dayTotal := 0.0
 		for h := 0; h < 24; h++ {
+			dayTotal += float64(heat[wd][h])
 			usual[h] += float64(heat[wd][h])
+		}
+		if dayTotal > 0 {
+			usualDays++
 		}
 	}
 	for h := range usual {
-		usual[h] = float64(int(usual[h]/6*10+0.5)) / 10
+		if usualDays > 0 {
+			usual[h] = float64(int(usual[h]/float64(usualDays)*10+0.5)) / 10
+		} else {
+			usual[h] = 0
+		}
 	}
 
 	type tgStat struct {
@@ -215,6 +226,7 @@ func (controller *Controller) BuildStatistics(rangeName string, system uint) ([]
 		"previous":  controller.countCalls(pfrom, pto, system),
 		"hourly":    hourly,
 		"usual":     usual,
+		"tz":        now.Format("MST") + " (UTC" + now.Format("-07:00") + ")",
 		"peakHour":  peak,
 		"top":       top,
 		"heatmap":   heat,

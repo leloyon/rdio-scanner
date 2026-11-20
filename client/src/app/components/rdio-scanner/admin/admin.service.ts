@@ -43,7 +43,13 @@ export interface AdminEvent {
     authenticated?: boolean;
     config?: Config;
     docker?: boolean;
+    ffmpeg?: FfmpegStatus;
     passwordNeedChange?: boolean;
+}
+
+export interface FfmpegStatus {
+    available: boolean;
+    version43: boolean;
 }
 
 export interface ApiKey {
@@ -139,6 +145,7 @@ export interface UpdateRelease {
 }
 
 export interface UpdateInfo {
+    version?: string;
     status: 'current' | 'available' | 'unknown' | 'error';
     current?: UpdateRelease;
     latest?: UpdateRelease;
@@ -225,6 +232,10 @@ export class RdioScannerAdminService implements OnDestroy {
         return this._docker;
     }
 
+    get ffmpeg(): FfmpegStatus | undefined {
+        return this._ffmpeg;
+    }
+
     get passwordNeedChange() {
         return this._passwordNeedChange;
     }
@@ -232,6 +243,8 @@ export class RdioScannerAdminService implements OnDestroy {
     private configWebSocket: WebSocket | undefined;
 
     private _docker = false;
+
+    private _ffmpeg: FfmpegStatus | undefined;
 
     private _passwordNeedChange = false;
 
@@ -283,6 +296,7 @@ export class RdioScannerAdminService implements OnDestroy {
             const res = await firstValueFrom(this.ngHttpClient.get<{
                 config: Config;
                 docker: boolean;
+                ffmpeg?: FfmpegStatus;
                 passwordNeedChange: boolean;
             }>(
                 this.getUrl(url.config),
@@ -293,6 +307,12 @@ export class RdioScannerAdminService implements OnDestroy {
                 this._docker = res.docker;
 
                 this.event.emit({ docker: this.docker })
+            }
+
+            if (res.ffmpeg && JSON.stringify(res.ffmpeg) !== JSON.stringify(this._ffmpeg)) {
+                this._ffmpeg = res.ffmpeg;
+
+                this.event.emit({ ffmpeg: this._ffmpeg });
             }
 
             if (res.passwordNeedChange !== this._passwordNeedChange) {

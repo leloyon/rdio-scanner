@@ -36,6 +36,9 @@ export class RdioScannerAdminComponent implements OnDestroy {
     // Set only when a newer release than the running exe is published on GitHub.
     updateAvailable: UpdateInfo | undefined;
 
+    // Latest update-check answer, for the "About this build" line.
+    buildInfo: UpdateInfo | undefined;
+
     private eventSubscription = this.adminService.event.subscribe(async (event: AdminEvent) => {
         if ('authenticated' in event) {
             this.authenticated = event.authenticated || false;
@@ -55,11 +58,25 @@ export class RdioScannerAdminComponent implements OnDestroy {
     private async checkForUpdate(): Promise<void> {
         const info = await this.adminService.checkForUpdate();
 
+        this.buildInfo = info;
         this.updateAvailable = info?.status === 'available' ? info : undefined;
     }
 
     ngOnDestroy(): void {
         this.eventSubscription.unsubscribe();
+    }
+
+    // One line describing the running build.
+    get buildLine(): string {
+        const i = this.buildInfo;
+        if (!i) return '';
+        const base = i.version ? `Rdio Scanner ${i.version}` : 'Rdio Scanner';
+        switch (i.status) {
+            case 'current': return `${base} · ${i.current?.name || i.current?.tag} · up to date`;
+            case 'available': return `${base} · ${i.current?.name || i.current?.tag}`;
+            case 'unknown': return `${base} · local build (not a published release)`;
+            default: return `${base} · could not check for updates`;
+        }
     }
 
     async logout(): Promise<void> {

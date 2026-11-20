@@ -40,12 +40,18 @@ export class RdioScannerAdminTodosComponent implements OnDestroy, OnInit {
             this.config = event.config;
         }
 
+        if ('ffmpeg' in event) {
+            this.ffmpeg = event.ffmpeg;
+        }
+
         if ('passwordNeedChange' in event) {
             this.passwordNeedChange = event.passwordNeedChange || false;
         }
 
         this.rebuildTodos();
     });
+
+    private ffmpeg = this.adminService.ffmpeg;
 
     private passwordNeedChange = this.adminService.passwordNeedChange;
 
@@ -84,6 +90,24 @@ export class RdioScannerAdminTodosComponent implements OnDestroy, OnInit {
             todos.push({
                 level: 'info',
                 message: 'No apikeys or dirwatch defined. Please set at least one to allow ingesting audio files.',
+            });
+        }
+
+        // Normalization is wanted when the global choice normalizes, or talkgroups are listed.
+        const options = this.config?.options;
+        const wantsConversion = (options?.audioConversion ?? 0) > 0 || !!options?.normalizeTalkgroups?.trim();
+        const wantsNormalization = (options?.audioConversion ?? 0) >= 2 || !!options?.normalizeTalkgroups?.trim();
+
+        if (this.ffmpeg && !this.ffmpeg.available && wantsConversion) {
+            todos.push({
+                level: 'warn',
+                message: 'FFmpeg was not found, so audio conversion and normalization are turned off. Install FFmpeg 4.3 or newer, make sure it is on the PATH, then restart Rdio Scanner.',
+            });
+
+        } else if (this.ffmpeg?.available && !this.ffmpeg.version43 && wantsNormalization) {
+            todos.push({
+                level: 'warn',
+                message: 'FFmpeg was found but is older than 4.3 or its version text is not recognized (it must look like "7.1.1", with three numbers), so audio normalization is skipped. Install a release build of FFmpeg 4.3 or newer, then restart Rdio Scanner.',
             });
         }
 

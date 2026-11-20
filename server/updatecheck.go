@@ -60,7 +60,8 @@ type updateRelease struct {
 }
 
 type updateInfo struct {
-	Status  string         `json:"status"` // current, available, unknown or error
+	Version string         `json:"version,omitempty"` // base Rdio Scanner version of the running server
+	Status  string         `json:"status"`            // current, available, unknown or error
 	Current *updateRelease `json:"current,omitempty"`
 	Latest  *updateRelease `json:"latest,omitempty"`
 }
@@ -211,7 +212,10 @@ func (admin *Admin) UpdateCheckHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, err := json.Marshal(checkForUpdate())
+	info := checkForUpdate()
+	info.Version = Version
+
+	b, err := json.Marshal(info)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

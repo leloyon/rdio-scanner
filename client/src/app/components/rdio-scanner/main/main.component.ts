@@ -32,6 +32,7 @@ import {
     RdioScannerLivefeedMap,
     RdioScannerLivefeedMode,
 } from '../rdio-scanner';
+import { backgroundAudio } from '../background-audio';
 import { RdioScannerService } from '../rdio-scanner.service';
 import { RdioScannerSupportComponent } from './support/support.component';
 
@@ -71,6 +72,18 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     setTheme(value: string): void {
         this.theme = this.themes.some(t => t.id === value) ? value : 'default';
         try { localStorage.setItem('rdio-scanner-theme', this.theme); } catch { }
+    }
+
+    keepAwake = 'off';
+
+    get wakeLockSupported(): boolean {
+        return backgroundAudio.wakeLockSupported;
+    }
+
+    setKeepAwake(value: string): void {
+        this.keepAwake = value === 'on' ? 'on' : 'off';
+        backgroundAudio.setWakeLock(this.keepAwake === 'on');
+        try { localStorage.setItem('rdio-scanner-keep-awake', this.keepAwake); } catch { }
     }
 
     setVolume(value: number | null): void {
@@ -303,6 +316,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             const stored = localStorage.getItem('rdio-scanner-volume');
             const value = stored === null ? 100 : Number(stored);
             this.setVolume(Number.isFinite(value) ? value : 100);
+            this.setKeepAwake(localStorage.getItem('rdio-scanner-keep-awake') || 'off');
         } catch { }
         this.syncClock();
     }

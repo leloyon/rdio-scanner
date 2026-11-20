@@ -14,6 +14,7 @@
         </a>
         <a mat-stroked-button [href]="u.latest?.url" target="_blank" rel="noopener">Release page</a>
     </div>
+    <div class="build-line" *ngIf="buildLine">About this build: {{ buildLine }}</div>
     <rdio-scanner-admin-todos></rdio-scanner-admin-todos>
     <mat-accordion displayMode="flat">
         <mat-expansion-panel #configPanel (afterCollapse)="configComponent?.closeAll()">

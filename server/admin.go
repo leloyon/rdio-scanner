@@ -550,6 +550,11 @@ func (admin *Admin) SendConfig(w http.ResponseWriter) {
 			"passwordNeedChange": admin.Controller.Options.adminPasswordNeedChange,
 		}
 	}
+	// FFmpeg status, so the admin Todos can warn when normalization cannot work.
+	m["ffmpeg"] = map[string]bool{
+		"available": admin.Controller.FFMpeg.available,
+		"version43": admin.Controller.FFMpeg.version43,
+	}
 	if b, err := json.Marshal(m); err == nil {
 		w.Write(b)
 	} else {

@@ -176,6 +176,13 @@
             <mat-option *ngFor="let t of themes" [value]="t.id">{{ t.label }}</mat-option>
         </mat-select>
     </mat-form-field>
+    <mat-form-field class="scanner-theme-control" *ngIf="wakeLockSupported">
+        <mat-label>Screen</mat-label>
+        <mat-select aria-label="Keep screen awake" panelClass="scanner-theme-menu" [value]="keepAwake" (selectionChange)="setKeepAwake($event.value)">
+            <mat-option value="off">Normal</mat-option>
+            <mat-option value="on">Keep awake</mat-option>
+        </mat-select>
+    </mat-form-field>
 </div>
 <div class="rdio-help" *ngIf="email">
     <button mat-icon-button (click)="showHelp()">
