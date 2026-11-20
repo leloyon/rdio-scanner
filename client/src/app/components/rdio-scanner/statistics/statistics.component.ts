@@ -149,7 +149,7 @@ interface Stats {
 .x.now { background: #1e88e5; color: #fff; font-weight: 700; border-radius: 3px; }
 .x small { display: block; font-size: 8px; line-height: 9px; opacity: .8; }
 .stats.twelve .chart { margin-bottom: 30px; }
-.x { position: absolute; bottom: -16px; width: 100%; text-align: center; font-size: 9px; }
+.x { position: absolute; top: 100%; margin-top: 4px; width: 100%; text-align: center; font-size: 9px; }
 .top { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .rank { width: 20px; text-align: right; opacity: .7; }
 .name { width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
