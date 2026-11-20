@@ -17,7 +17,6 @@
  * ****************************************************************************
  */
 
-import { backgroundAudio } from './background-audio';
 import { DOCUMENT } from '@angular/common';
 import { EventEmitter, Inject, Injectable, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
@@ -126,22 +125,6 @@ export class RdioScannerService implements OnDestroy {
         @Inject(DOCUMENT) private document: Document,
     ) {
         this.bootstrapAudio();
-
-        backgroundAudio.setHandlers({
-            play: () => { if (this.livefeedPaused) this.pause(false); else this.replay(); },
-            pause: () => this.pause(true),
-            next: () => this.skip(),
-            previous: () => this.replay(),
-        });
-
-        this.event.subscribe((ev: any) => {
-            if (ev.call) {
-                const c = ev.call;
-                const tg = c.talkgroupData;
-                backgroundAudio.setMetadata(tg?.label || tg?.name || 'Scanner', c.systemData?.label || '', tg?.name || 'Rdio Scanner');
-            }
-            if (ev.pause !== undefined) backgroundAudio.setState(!!ev.pause);
-        });
 
         this.initializeInstanceId();
 
@@ -630,8 +613,6 @@ export class RdioScannerService implements OnDestroy {
 
         this.livefeedMode = RdioScannerLivefeedMode.Online;
 
-        backgroundAudio.start();
-
         this.event.emit({ livefeedMode: this.livefeedMode });
 
         this.sendtoWebsocket(WebsocketCommand.LivefeedMap, lfm);
@@ -659,8 +640,6 @@ export class RdioScannerService implements OnDestroy {
 
     stopLivefeed(): void {
         this.livefeedMode = RdioScannerLivefeedMode.Offline;
-
-        backgroundAudio.stop();
 
         this.clearQueue();
 

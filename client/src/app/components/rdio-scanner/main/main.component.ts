@@ -32,7 +32,6 @@ import {
     RdioScannerLivefeedMap,
     RdioScannerLivefeedMode,
 } from '../rdio-scanner';
-import { backgroundAudio } from '../background-audio';
 import { RdioScannerService } from '../rdio-scanner.service';
 import { RdioScannerSupportComponent } from './support/support.component';
 
