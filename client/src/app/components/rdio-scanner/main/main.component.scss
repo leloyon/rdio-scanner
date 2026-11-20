@@ -296,3 +296,4 @@
 .volume-control span { width: 42px; text-align: right; }
 .browser-controls mat-form-field { width: 200px; max-width: 100%; background: var(--scanner-control-surface); color: var(--scanner-control-ink); border-radius: 3px; padding: 8px 10px 0; box-sizing: border-box; }
 @media (max-width: 480px) { :host { padding: 12px; } }
+.volume-control .mute-button { flex: none; color: inherit; }

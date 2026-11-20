@@ -47,6 +47,11 @@ import { RdioScannerSupportComponent } from './support/support.component';
 export class RdioScannerMainComponent implements OnDestroy, OnInit {
     theme = 'default';
     volume = 100;
+    private lastVolume = 100;
+
+    toggleMute(): void {
+        this.setVolume(this.volume === 0 ? this.lastVolume || 100 : 0);
+    }
     themes = [
         { id: 'default', label: 'Default' },
         { id: 'amber', label: 'Vintage Amber LCD' },
@@ -76,7 +81,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     setVolume(value: number | null): void {
         this.volume = Math.min(100, Math.max(0, value ?? 100));
         this.rdioScannerService.setVolume(this.volume / 100);
-        try { localStorage.setItem('rdio-scanner-volume', String(this.volume)); } catch { }
+        if (this.volume > 0) this.lastVolume = this.volume;
     }
 
     showStatsPanel(): void {
@@ -300,9 +305,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     ngOnInit(): void {
         try {
             this.setTheme(localStorage.getItem('rdio-scanner-theme') || 'default');
-            const stored = localStorage.getItem('rdio-scanner-volume');
-            const value = stored === null ? 100 : Number(stored);
-            this.setVolume(Number.isFinite(value) ? value : 100);
+            this.setVolume(100);
         } catch { }
         this.syncClock();
     }
