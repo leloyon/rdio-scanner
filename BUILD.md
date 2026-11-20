@@ -81,7 +81,7 @@ go build -o rdio-scanner_v5.1.exe .
 ## Latest additions
 - Statistics: "usual for this hour" averages the previous full days (up to 6) that actually had calls; busiest and quietest day shown under the heatmap; "Times in server time" shows the server's own timezone.
 - Admin: Todos warns when FFmpeg is missing/failing or older than 4.3 (needed for normalization); "About this build" line above Todos; update-available banner.
-- Scanner (phone): lock-screen controls (play/pause, skip, replay) with the current talkgroup/system, a "Screen: Keep awake" setting (Wake Lock, saved per device), and a silent keep-alive audio track to keep sound going with the screen off. iPhone behaviour is best-effort (Safari can still suspend in Low Power Mode or after long periods); adding the page to the Home Screen helps.
+- Scanner (phone): lock-screen controls (play/pause, skip, replay) with the current talkgroup/system, and an experimental, off-by-default "Screen-off audio" setting. iPhone behaviour is best-effort (Safari can still suspend in Low Power Mode or after long periods); adding the page to the Home Screen helps.
 - Not verified here: full Go compile/tests (run on first build-exe.bat), real-phone behaviour.
 
 ## Verification and limits

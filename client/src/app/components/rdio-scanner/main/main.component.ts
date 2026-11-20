@@ -74,27 +74,12 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
         try { localStorage.setItem('rdio-scanner-theme', this.theme); } catch { }
     }
 
-    keepAwake = 'off';
     bgAudio = 'off';
-
-    get secureContext(): boolean {
-        return typeof window !== 'undefined' && window.isSecureContext;
-    }
 
     setBgAudio(value: string): void {
         this.bgAudio = value === 'on' ? 'on' : 'off';
         backgroundAudio.setKeepAlive(this.bgAudio === 'on');
         try { localStorage.setItem('rdio-scanner-bg-audio', this.bgAudio); } catch { }
-    }
-
-    get wakeLockSupported(): boolean {
-        return backgroundAudio.wakeLockSupported;
-    }
-
-    setKeepAwake(value: string): void {
-        this.keepAwake = value === 'on' ? 'on' : 'off';
-        backgroundAudio.setWakeLock(this.keepAwake === 'on');
-        try { localStorage.setItem('rdio-scanner-keep-awake', this.keepAwake); } catch { }
     }
 
     setVolume(value: number | null): void {
@@ -327,7 +312,6 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             const stored = localStorage.getItem('rdio-scanner-volume');
             const value = stored === null ? 100 : Number(stored);
             this.setVolume(Number.isFinite(value) ? value : 100);
-            this.setKeepAwake(localStorage.getItem('rdio-scanner-keep-awake') || 'off');
             this.setBgAudio(localStorage.getItem('rdio-scanner-bg-audio') || 'off');
         } catch { }
         this.syncClock();
