@@ -74,14 +74,6 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
         try { localStorage.setItem('rdio-scanner-theme', this.theme); } catch { }
     }
 
-    bgAudio = 'off';
-
-    setBgAudio(value: string): void {
-        this.bgAudio = value === 'on' ? 'on' : 'off';
-        backgroundAudio.setKeepAlive(this.bgAudio === 'on');
-        try { localStorage.setItem('rdio-scanner-bg-audio', this.bgAudio); } catch { }
-    }
-
     setVolume(value: number | null): void {
         this.volume = Math.min(100, Math.max(0, value ?? 100));
         this.rdioScannerService.setVolume(this.volume / 100);
@@ -312,7 +304,6 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             const stored = localStorage.getItem('rdio-scanner-volume');
             const value = stored === null ? 100 : Number(stored);
             this.setVolume(Number.isFinite(value) ? value : 100);
-            this.setBgAudio(localStorage.getItem('rdio-scanner-bg-audio') || 'off');
         } catch { }
         this.syncClock();
     }

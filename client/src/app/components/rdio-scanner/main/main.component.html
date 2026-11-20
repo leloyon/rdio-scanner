@@ -176,13 +176,6 @@
             <mat-option *ngFor="let t of themes" [value]="t.id">{{ t.label }}</mat-option>
         </mat-select>
     </mat-form-field>
-    <mat-form-field class="scanner-theme-control">
-        <mat-label>Screen-off audio</mat-label>
-        <mat-select aria-label="Keep audio playing with screen off" panelClass="scanner-theme-menu" [value]="bgAudio" (selectionChange)="setBgAudio($event.value)">
-            <mat-option value="off">Off</mat-option>
-            <mat-option value="on">On (experimental)</mat-option>
-        </mat-select>
-    </mat-form-field>
 </div>
 <div class="rdio-help" *ngIf="email">
     <button mat-icon-button (click)="showHelp()">
