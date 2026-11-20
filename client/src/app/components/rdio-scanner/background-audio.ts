@@ -31,6 +31,7 @@ export class BackgroundAudio {
     private lock: any;
     private wantLock = false;
     private active = false;
+    keepAlive = false;
     private handlers: BackgroundAudioHandlers | undefined;
 
     constructor() {
@@ -62,6 +63,7 @@ export class BackgroundAudio {
     /** Call from a user gesture (the livefeed button) so iOS allows playback. */
     start(): void {
         this.active = true;
+        if (!this.keepAlive) { this.setState(false); return; }
         try {
             const nav = navigator as any;
             if (nav.audioSession) nav.audioSession.type = 'playback';
@@ -103,6 +105,12 @@ export class BackgroundAudio {
             const MM = (window as any).MediaMetadata;
             if (ms && MM) ms.metadata = new MM({ title, artist, album });
         } catch { }
+    }
+
+    setKeepAlive(on: boolean): void {
+        this.keepAlive = on;
+        if (!on) { try { this.el?.pause(); } catch { } }
+        else if (this.active) this.start();
     }
 
     setWakeLock(on: boolean): void {

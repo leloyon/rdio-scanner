@@ -176,11 +176,19 @@
             <mat-option *ngFor="let t of themes" [value]="t.id">{{ t.label }}</mat-option>
         </mat-select>
     </mat-form-field>
-    <mat-form-field class="scanner-theme-control" *ngIf="wakeLockSupported">
+    <mat-form-field class="scanner-theme-control">
         <mat-label>Screen</mat-label>
         <mat-select aria-label="Keep screen awake" panelClass="scanner-theme-menu" [value]="keepAwake" (selectionChange)="setKeepAwake($event.value)">
             <mat-option value="off">Normal</mat-option>
             <mat-option value="on">Keep awake</mat-option>
+        </mat-select>
+        <mat-hint *ngIf="!wakeLockSupported">{{ secureContext ? 'Not supported by this browser' : 'Needs an https:// address' }}</mat-hint>
+    </mat-form-field>
+    <mat-form-field class="scanner-theme-control">
+        <mat-label>Screen-off audio</mat-label>
+        <mat-select aria-label="Keep audio playing with screen off" panelClass="scanner-theme-menu" [value]="bgAudio" (selectionChange)="setBgAudio($event.value)">
+            <mat-option value="off">Off</mat-option>
+            <mat-option value="on">On (experimental)</mat-option>
         </mat-select>
     </mat-form-field>
 </div>

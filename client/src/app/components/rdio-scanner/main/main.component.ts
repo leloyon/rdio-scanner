@@ -75,6 +75,17 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     }
 
     keepAwake = 'off';
+    bgAudio = 'off';
+
+    get secureContext(): boolean {
+        return typeof window !== 'undefined' && window.isSecureContext;
+    }
+
+    setBgAudio(value: string): void {
+        this.bgAudio = value === 'on' ? 'on' : 'off';
+        backgroundAudio.setKeepAlive(this.bgAudio === 'on');
+        try { localStorage.setItem('rdio-scanner-bg-audio', this.bgAudio); } catch { }
+    }
 
     get wakeLockSupported(): boolean {
         return backgroundAudio.wakeLockSupported;
@@ -317,6 +328,7 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
             const value = stored === null ? 100 : Number(stored);
             this.setVolume(Number.isFinite(value) ? value : 100);
             this.setKeepAwake(localStorage.getItem('rdio-scanner-keep-awake') || 'off');
+            this.setBgAudio(localStorage.getItem('rdio-scanner-bg-audio') || 'off');
         } catch { }
         this.syncClock();
     }
