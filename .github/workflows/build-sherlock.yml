@@ -1,0 +1,28 @@
+name: Build Rdio Sherlock (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'rdio-sherlock/**'
+      - '.github/workflows/build-sherlock.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rdio-sherlock/src-tauri
+      - name: Build
+        working-directory: rdio-sherlock/src-tauri
+        run: cargo build --release
+      - name: Name the exe
+        shell: pwsh
+        run: Copy-Item rdio-sherlock/src-tauri/target/release/rdio-scanner-anywhere.exe "Rdio-Sherlock.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rdio-Sherlock
+          path: Rdio-Sherlock.exe
