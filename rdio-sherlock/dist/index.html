@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rdio Sherlock</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 44px 16px 24px;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: #0d1117; color: #e6edf3;
+    display: flex; justify-content: center;
+  }
+  .card {
+    width: 100%; max-width: 430px;
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 24px 22px 20px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #9aa7b4; font-size: 13px; margin: 0 0 18px; line-height: 1.45; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+  label .opt { font-weight: 400; color: #9aa7b4; }
+  input {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    background: #0d1117; color: #e6edf3;
+    border: 1px solid #30363d; border-radius: 8px; outline: none;
+  }
+  input:focus { border-color: #2f81f7; }
+  .hint { font-size: 12px; color: #9aa7b4; margin-top: 5px; line-height: 1.4; }
+  button.primary {
+    width: 100%; margin-top: 20px; padding: 11px;
+    font-size: 15px; font-weight: 600;
+    background: #238636; color: #fff; border: none; border-radius: 8px; cursor: pointer;
+  }
+  button.primary:hover { background: #2ea043; }
+  .row { display: flex; gap: 10px; margin-top: 12px; }
+  button.ghost {
+    flex: 1; padding: 9px; font-size: 13px;
+    background: transparent; color: #9aa7b4;
+    border: 1px solid #30363d; border-radius: 8px; cursor: pointer;
+  }
+  button.ghost:hover { color: #e6edf3; border-color: #9aa7b4; }
+  .err { color: #f85149; font-size: 13px; min-height: 17px; margin-top: 10px; }
+  #connecting { text-align: center; padding: 18px 0 6px; }
+  #connecting .srv { font-size: 16px; font-weight: 600; word-break: break-all; }
+  #connecting .note { color: #9aa7b4; font-size: 13px; margin-top: 6px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div id="connecting" class="hidden">
+      <div class="srv" id="connecting-server"></div>
+      <div class="note">Connecting…</div>
+      <div class="row">
+        <button type="button" class="ghost" id="change-btn">Change server</button>
+      </div>
+    </div>
+
+    <form id="setup-form" novalidate>
+      <h1>Rdio Sherlock</h1>
+      <p class="sub">Point this app at any rdio-scanner server. Your server and access code are remembered on this computer only.</p>
+
+      <label for="server">Server address</label>
+      <input id="server" type="text" spellcheck="false" autocomplete="off"
+             placeholder="http://192.168.1.10:3000">
+      <div class="hint">The same address you'd open in a browser, e.g. https://scanner.example.com or http://myserver:3000</div>
+
+      <label for="code">Access code <span class="opt">(only if the server asks for one)</span></label>
+      <input id="code" type="password" spellcheck="false" autocomplete="off" placeholder="Leave blank if none">
+      <div class="hint">If the server uses an unlock code, entering it here signs you in automatically.</div>
+
+      <div class="err" id="err"></div>
+      <button type="submit" class="primary">Connect</button>
+      <div class="row">
+        <button type="button" class="ghost" id="forget-btn">Forget saved server</button>
+      </div>
+    </form>
+  </div>
+
+<script>
+(function () {
+  var KEY = 'rdioAnywhere.config.v1';
+  var form = document.getElementById('setup-form');
+  var connecting = document.getElementById('connecting');
+  var serverInput = document.getElementById('server');
+  var codeInput = document.getElementById('code');
+  var errEl = document.getElementById('err');
+  var timer = null;
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function save(cfg) {
+    try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  }
+  function forget() {
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+
+  function normalizeServer(value) {
+    var v = (value || '').trim();
+    if (!v) return null;
+    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(v)) v = 'http://' + v;
+    var u;
+    try { u = new URL(v); } catch (e) { return null; }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return v.replace(/\/+$/, '');
+  }
+
+  function go(server, code) {
+    var b64 = '';
+    if (code) {
+      try { b64 = window.btoa(code); } catch (e) { b64 = ''; }
+    }
+    // The rdio-scanner page stores its unlock code in localStorage
+    // ('rdio-scanner-pin', base64). The app's start script seeds it from
+    // this fragment before the page loads, then removes the fragment.
+    window.location.href = server + '/#rdioPin=' + encodeURIComponent(b64);
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var server = normalizeServer(serverInput.value);
+    if (!server) {
+      errEl.textContent = 'That server address doesn\u2019t look right. Check it and try again.';
+      return;
+    }
+    errEl.textContent = '';
+    var code = codeInput.value || '';
+    save({ server: server, code: code });
+    go(server, code);
+  });
+
+  document.getElementById('forget-btn').addEventListener('click', function () {
+    forget();
+    serverInput.value = '';
+    codeInput.value = '';
+    errEl.textContent = 'Saved server forgotten.';
+  });
+
+  document.getElementById('change-btn').addEventListener('click', function () {
+    if (timer) { clearTimeout(timer); timer = null; }
+    connecting.classList.add('hidden');
+    form.classList.remove('hidden');
+  });
+
+  var saved = load();
+  var editMode = /#edit\b/.test(window.location.hash || '');
+  if (editMode) {
+    try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
+  }
+  if (saved && saved.server) {
+    serverInput.value = saved.server;
+    codeInput.value = saved.code || '';
+    if (!editMode) {
+      document.getElementById('connecting-server').textContent = saved.server;
+      form.classList.add('hidden');
+      connecting.classList.remove('hidden');
+      timer = setTimeout(function () { go(saved.server, saved.code || ''); }, 2000);
+    }
+  }
+})();
+</script>
+</body>
+</html>
