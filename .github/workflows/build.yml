@@ -3,7 +3,9 @@ name: Build
 # Manual only: Actions tab -> Build -> Run workflow.
 # Type the Lel Edition number (for example 1.6) to name the files and publish a
 # release like the earlier ones: tag 6.6.3-v1.6, "Rdio-Scanner Lel Edition v1.6".
-# Leave it empty to only get test builds under Artifacts (kept 14 days).
+# Put "beta" in it (for example 1.5.2-beta1) to publish a pre-release that is not
+# shown as the latest release. Leave it empty to only get test builds under
+# Artifacts (kept 14 days, only visible to you).
 on:
   workflow_dispatch:
     inputs:
@@ -117,4 +119,6 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Rdio-Scanner Lel Edition v${{ inputs.edition }}
           target_commitish: ${{ github.sha }}
+          prerelease: ${{ contains(inputs.edition, 'beta') }}
+          make_latest: ${{ !contains(inputs.edition, 'beta') }}
           files: dist/*
