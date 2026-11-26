@@ -288,15 +288,22 @@ func (controller *Controller) IngestCall(call *Call) {
 	if gated {
 		duplicateGate.Lock()
 
-		action, ids := controller.Calls.CheckDuplicate(call, controller.Options.DuplicateDetectionTimeFrame, controller.Database)
+		action, ids, detail := controller.Calls.CheckDuplicate(call, controller.Options.DuplicateDetectionTimeFrame, controller.Database)
+		if detail != "" {
+			detail = ": " + detail
+		}
 		switch action {
 		case DuplicateReject:
 			duplicateGate.Unlock()
-			logCall(call, LogLevelWarn, "duplicate call rejected (a longer copy exists)")
+			logCall(call, LogLevelWarn, "duplicate call rejected (a longer copy exists)"+detail)
 			return
 		case DuplicateReplace:
 			controller.Calls.DeleteCalls(ids, controller.Database)
-			logCall(call, LogLevelInfo, fmt.Sprintf("duplicate: replaced %d shorter copy(ies)", len(ids)))
+			logCall(call, LogLevelInfo, fmt.Sprintf("duplicate: replaced %d shorter copy(ies)", len(ids))+detail)
+		default:
+			if detail != "" {
+				logCall(call, LogLevelInfo, "not a duplicate"+detail)
+			}
 		}
 	}
 

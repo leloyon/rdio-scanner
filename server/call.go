@@ -200,18 +200,27 @@ func callSourceID(v any) uint {
 // CheckDuplicate keeps the longest copy of a transmission and keeps different
 // audio formats separate. A short key-up next to a long conversation on the
 // same talkgroup is treated as a different transmission and both are kept.
-func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (DuplicateAction, []uint) {
+//
+// The third value is a one line explanation of what was compared and why, for
+// the log. It is empty when no other call on the same talkgroup is close in time.
+func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (DuplicateAction, []uint, string) {
 	calls.mutex.Lock()
 	defer calls.mutex.Unlock()
 
 	d := time.Duration(msTimeFrame) * time.Millisecond
-	from := call.DateTime.Add(-d)
-	to := call.DateTime.Add(d)
 
-	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`audioType`, ''), coalesce(`source`, 0) from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v", from, to, call.System, call.Talkgroup)
+	// look wider than the window so a copy that just missed it shows up in the log
+	wide := 10 * time.Second
+	if 3*d > wide {
+		wide = 3 * d
+	}
+	from := call.DateTime.Add(-wide)
+	to := call.DateTime.Add(wide)
+
+	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`audioType`, ''), coalesce(`source`, 0), `dateTime` from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v order by `dateTime`", from, to, call.System, call.Talkgroup)
 	rows, err := db.Sql.Query(query)
 	if err != nil {
-		return DuplicateNone, nil
+		return DuplicateNone, nil, ""
 	}
 	defer rows.Close()
 
@@ -220,20 +229,39 @@ func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (
 	if v, ok := call.AudioType.(string); ok {
 		newType = v
 	}
-
 	newSource := callSourceID(call.Source)
 
-	return decideDuplicateSrc(newSize, newType, func(yield func(id uint, size int, atype string, source int) bool) {
+	notes := []string{}
+
+	action, ids, reasons := decideDuplicateExplain(newSize, newType, func(yield func(id uint, size int, atype string, source int) bool) {
 		for rows.Next() {
 			var (
 				id    uint
 				size  int
 				atype string
 				src   float64
+				dt    any
 			)
-			if rows.Scan(&id, &size, &atype, &src) != nil {
+			if rows.Scan(&id, &size, &atype, &src, &dt) != nil {
 				continue
 			}
+
+			gap := time.Duration(0)
+			if t, err := db.ParseDateTime(dt); err == nil {
+				gap = t.Sub(call.DateTime)
+			}
+			absGap := gap
+			if absGap < 0 {
+				absGap = -absGap
+			}
+
+			info := fmt.Sprintf("#%d %+dms size=%d type=%s radio=%d", id, gap.Milliseconds(), size, atype, uint(src))
+
+			if absGap > d {
+				notes = append(notes, fmt.Sprintf("%s: outside the %dms window, not compared", info, msTimeFrame))
+				continue
+			}
+
 			// compare the real lengths when both are known, scaled to the stored size
 			if raw, ok := calls.rawSize[id]; ok {
 				size = scaleToStored(raw, call.rawSize, newSize, size)
@@ -246,11 +274,29 @@ func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (
 					source = -1
 				}
 			}
+			notes = append(notes, info) // the reason is added below, in order
 			if !yield(id, size, atype, source) {
 				return
 			}
 		}
 	})
+
+	if len(notes) == 0 {
+		return action, ids, ""
+	}
+
+	// attach each decision reason to the compared candidate it belongs to
+	r := 0
+	for i := range notes {
+		if !strings.Contains(notes[i], "window, not compared") && r < len(reasons) {
+			notes[i] += ": " + reasons[r]
+			r++
+		}
+	}
+
+	decision := map[DuplicateAction]string{DuplicateNone: "stored", DuplicateReject: "rejected", DuplicateReplace: "replaces older copy"}[action]
+
+	return action, ids, fmt.Sprintf("duplicate check (window %dms): new size=%d (real %d) type=%s radio=%d -> %s; nearby: %s", msTimeFrame, newSize, call.rawSize, newType, newSource, decision, strings.Join(notes, "; "))
 }
 
 // decideDuplicate holds the pure decision rules (unit tested).
@@ -267,37 +313,50 @@ func decideDuplicate(newSize int, newType string, each func(func(id uint, size i
 // only part of it, so the size rule is skipped. A different radio is a different
 // transmission, so both are kept.
 func decideDuplicateSrc(newSize int, newType string, each func(func(id uint, size int, atype string, source int) bool)) (DuplicateAction, []uint) {
+	action, ids, _ := decideDuplicateExplain(newSize, newType, each)
+	return action, ids
+}
+
+// decideDuplicateExplain is decideDuplicateSrc that also returns, for each
+// candidate it was given (in order), why it was kept apart or counted as a copy.
+func decideDuplicateExplain(newSize int, newType string, each func(func(id uint, size int, atype string, source int) bool)) (DuplicateAction, []uint, []string) {
 	replace := []uint{}
+	reasons := []string{}
 	reject := false
 	each(func(id uint, size int, atype string, source int) bool {
 		if source < 0 {
-			return true // different radio, keep both
+			reasons = append(reasons, "different radio, kept both")
+			return true
 		}
 		sameSource := source > 0
 		if newType != "" && atype != "" && atype != newType {
-			return true // different format, keep both
+			reasons = append(reasons, fmt.Sprintf("different format (%s vs %s), kept both", atype, newType))
+			return true
 		}
 		small, big := size, newSize
 		if small > big {
 			small, big = big, small
 		}
 		if !sameSource && big > 0 && float64(small)/float64(big) < duplicateSizeRatio {
-			return true // different transmissions
+			reasons = append(reasons, fmt.Sprintf("sizes too different (%d vs %d, below %.0f%%), kept both", size, newSize, duplicateSizeRatio*100))
+			return true
 		}
 		if newSize > size {
 			replace = append(replace, id)
+			reasons = append(reasons, fmt.Sprintf("same transmission, new copy is longer (%d > %d), replaces it", newSize, size))
 			return true
 		}
+		reasons = append(reasons, fmt.Sprintf("same transmission, stored copy is as long or longer (%d >= %d), new copy rejected", size, newSize))
 		reject = true
 		return false
 	})
 	if reject {
-		return DuplicateReject, nil
+		return DuplicateReject, nil, reasons
 	}
 	if len(replace) > 0 {
-		return DuplicateReplace, replace
+		return DuplicateReplace, replace, reasons
 	}
-	return DuplicateNone, nil
+	return DuplicateNone, nil, reasons
 }
 
 func (calls *Calls) DeleteCalls(ids []uint, db *Database) {

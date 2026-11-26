@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 type rec struct {
 	id    uint
@@ -111,5 +114,27 @@ func TestShortCopiesComparedByRealLength(t *testing.T) {
 	// unknown real sizes fall back to the stored size
 	if scaleToStored(0, 1, 2, 77) != 77 {
 		t.Fatal("fallback")
+	}
+}
+
+func TestDuplicateExplainsItself(t *testing.T) {
+	feed1 := func(size int, src int) func(func(uint, int, string, int) bool) {
+		return func(y func(uint, int, string, int) bool) { y(7, size, "audio/x-wav", src) }
+	}
+	a, _, why := decideDuplicateExplain(1000, "audio/x-wav", feed1(1000, 1))
+	if a != DuplicateReject || len(why) != 1 || !strings.Contains(why[0], "rejected") || !strings.Contains(why[0], "1000 >= 1000") {
+		t.Fatal(a, why)
+	}
+	a, _, why = decideDuplicateExplain(1000, "audio/x-wav", feed1(1000, -1))
+	if a != DuplicateNone || !strings.Contains(why[0], "different radio") {
+		t.Fatal(a, why)
+	}
+	a, _, why = decideDuplicateExplain(1000, "audio/mpeg", feed1(1000, 1))
+	if a != DuplicateNone || !strings.Contains(why[0], "different format") {
+		t.Fatal(a, why)
+	}
+	a, _, why = decideDuplicateExplain(1000, "audio/x-wav", feed1(300, 0))
+	if a != DuplicateNone || !strings.Contains(why[0], "sizes too different") {
+		t.Fatal(a, why)
 	}
 }
