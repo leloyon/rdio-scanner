@@ -63,8 +63,8 @@ func TestPhantomOnlyUnnamed(t *testing.T) {
 
 func TestSameRadioTruncatedCopyIsDuplicate(t *testing.T) {
 	// a site that heard only the start of a transmission, then the full copy from another site
-	feedSrc := func(rs []rec, same bool) func(func(uint, int, string, bool) bool) {
-		return func(y func(uint, int, string, bool) bool) {
+	feedSrc := func(rs []rec, same int) func(func(uint, int, string, int) bool) {
+		return func(y func(uint, int, string, int) bool) {
 			for _, r := range rs {
 				if !y(r.id, r.size, r.atype, same) {
 					return
@@ -72,18 +72,44 @@ func TestSameRadioTruncatedCopyIsDuplicate(t *testing.T) {
 			}
 		}
 	}
-	a, ids := decideDuplicateSrc(200000, "audio/mpeg", feedSrc([]rec{{1, 20000, "audio/mpeg"}}, true))
+	a, ids := decideDuplicateSrc(200000, "audio/mpeg", feedSrc([]rec{{1, 20000, "audio/mpeg"}}, 1))
 	if a != DuplicateReplace || len(ids) != 1 {
 		t.Fatal(a, ids)
 	}
-	if a, _ := decideDuplicateSrc(20000, "audio/mpeg", feedSrc([]rec{{1, 200000, "audio/mpeg"}}, true)); a != DuplicateReject {
+	if a, _ := decideDuplicateSrc(20000, "audio/mpeg", feedSrc([]rec{{1, 200000, "audio/mpeg"}}, 1)); a != DuplicateReject {
 		t.Fatal(a)
 	}
 	// a different radio keeps the old behaviour
-	if a, _ := decideDuplicateSrc(200000, "audio/mpeg", feedSrc([]rec{{1, 20000, "audio/mpeg"}}, false)); a != DuplicateNone {
+	if a, _ := decideDuplicateSrc(200000, "audio/mpeg", feedSrc([]rec{{1, 20000, "audio/mpeg"}}, 0)); a != DuplicateNone {
+		t.Fatal(a)
+	}
+	// a different radio is a different transmission: keep both, whatever the sizes
+	if a, _ := decideDuplicateSrc(200000, "audio/mpeg", feedSrc([]rec{{1, 200000, "audio/mpeg"}}, -1)); a != DuplicateNone {
+		t.Fatal(a)
+	}
+	// equal stored sizes with the same radio keep one copy
+	if a, _ := decideDuplicateSrc(96000, "audio/mpeg", feedSrc([]rec{{1, 96000, "audio/mpeg"}}, 1)); a != DuplicateReject {
 		t.Fatal(a)
 	}
 	if callSourceID(uint(4090280)) != 4090280 || callSourceID(nil) != 0 {
 		t.Fatal("callSourceID")
+	}
+}
+
+func TestShortCopiesComparedByRealLength(t *testing.T) {
+	// both stored as 3 s of mp3 (96000), but the new copy was really longer
+	stored := 96000
+	existing := scaleToStored(40000, 56000, stored, stored)
+	if a, ids := decideDuplicateSrc(stored, "audio/mpeg", func(y func(uint, int, string, int) bool) { y(1, existing, "audio/mpeg", 1) }); a != DuplicateReplace || len(ids) != 1 {
+		t.Fatal(a, ids)
+	}
+	// and the other way round the shorter new copy is rejected
+	existing = scaleToStored(56000, 40000, stored, stored)
+	if a, _ := decideDuplicateSrc(stored, "audio/mpeg", func(y func(uint, int, string, int) bool) { y(1, existing, "audio/mpeg", 1) }); a != DuplicateReject {
+		t.Fatal(a)
+	}
+	// unknown real sizes fall back to the stored size
+	if scaleToStored(0, 1, 2, 77) != 77 {
+		t.Fatal("fallback")
 	}
 }

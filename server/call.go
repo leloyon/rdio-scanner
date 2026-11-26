@@ -45,6 +45,7 @@ type Call struct {
 	talkgroupName  any
 	talkgroupTag   any
 	units          any
+	rawSize        int // audio size before conversion (conversion pads short calls to 3 s)
 }
 
 func NewCall() *Call {
@@ -113,12 +114,46 @@ func (call *Call) ToJson() (string, error) {
 }
 
 type Calls struct {
-	mutex sync.Mutex
+	mutex   sync.Mutex
+	rawSize map[uint]int // recent call id -> audio size before conversion
 }
 
 func NewCalls() *Calls {
 	return &Calls{
-		mutex: sync.Mutex{},
+		mutex:   sync.Mutex{},
+		rawSize: map[uint]int{},
+	}
+}
+
+// scaleToStored turns an existing call's real size into the units of the new
+// call's stored (converted) size so the two can be compared, or returns the
+// stored size when the real sizes are not known.
+func scaleToStored(existingRaw, newRaw, newStored, existingStored int) int {
+	if existingRaw <= 0 || newRaw <= 0 || newStored <= 0 {
+		return existingStored
+	}
+	return int(float64(existingRaw) * float64(newStored) / float64(newRaw))
+}
+
+// NoteRawSize remembers how long a stored call really was. Conversion pads every
+// call to at least 3 seconds, so two copies of a short call look the same size
+// once stored, and the longer one can't be told from the shorter one.
+func (calls *Calls) NoteRawSize(id uint, size int) {
+	if size <= 0 {
+		return
+	}
+	calls.mutex.Lock()
+	defer calls.mutex.Unlock()
+	if calls.rawSize == nil {
+		calls.rawSize = map[uint]int{}
+	}
+	calls.rawSize[id] = size
+	if len(calls.rawSize) > 2000 {
+		for k := range calls.rawSize {
+			if k+1000 < id {
+				delete(calls.rawSize, k)
+			}
+		}
 	}
 }
 
@@ -188,7 +223,7 @@ func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (
 
 	newSource := callSourceID(call.Source)
 
-	return decideDuplicateSrc(newSize, newType, func(yield func(id uint, size int, atype string, sameSource bool) bool) {
+	return decideDuplicateSrc(newSize, newType, func(yield func(id uint, size int, atype string, source int) bool) {
 		for rows.Next() {
 			var (
 				id    uint
@@ -199,7 +234,19 @@ func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (
 			if rows.Scan(&id, &size, &atype, &src) != nil {
 				continue
 			}
-			if !yield(id, size, atype, newSource > 0 && uint(src) == newSource) {
+			// compare the real lengths when both are known, scaled to the stored size
+			if raw, ok := calls.rawSize[id]; ok {
+				size = scaleToStored(raw, call.rawSize, newSize, size)
+			}
+			source := 0
+			if newSource > 0 && src > 0 {
+				if uint(src) == newSource {
+					source = 1
+				} else {
+					source = -1
+				}
+			}
+			if !yield(id, size, atype, source) {
 				return
 			}
 		}
@@ -208,19 +255,25 @@ func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (
 
 // decideDuplicate holds the pure decision rules (unit tested).
 func decideDuplicate(newSize int, newType string, each func(func(id uint, size int, atype string) bool)) (DuplicateAction, []uint) {
-	return decideDuplicateSrc(newSize, newType, func(yield func(uint, int, string, bool) bool) {
-		each(func(id uint, size int, atype string) bool { return yield(id, size, atype, false) })
+	return decideDuplicateSrc(newSize, newType, func(yield func(uint, int, string, int) bool) {
+		each(func(id uint, size int, atype string) bool { return yield(id, size, atype, 0) })
 	})
 }
 
-// decideDuplicateSrc is decideDuplicate that also knows whether an existing call
-// came from the same radio. The same radio on the same talkgroup at the same
-// moment is the same transmission, even when one site heard only part of it, so
-// the size rule is skipped.
-func decideDuplicateSrc(newSize int, newType string, each func(func(id uint, size int, atype string, sameSource bool) bool)) (DuplicateAction, []uint) {
+// decideDuplicateSrc is decideDuplicate that also knows about the radio:
+// source is 1 when an existing call came from the same radio, -1 when it came
+// from a different radio, 0 when either is unknown. The same radio on the same
+// talkgroup at the same moment is the same transmission even when one site heard
+// only part of it, so the size rule is skipped. A different radio is a different
+// transmission, so both are kept.
+func decideDuplicateSrc(newSize int, newType string, each func(func(id uint, size int, atype string, source int) bool)) (DuplicateAction, []uint) {
 	replace := []uint{}
 	reject := false
-	each(func(id uint, size int, atype string, sameSource bool) bool {
+	each(func(id uint, size int, atype string, source int) bool {
+		if source < 0 {
+			return true // different radio, keep both
+		}
+		sameSource := source > 0
 		if newType != "" && atype != "" && atype != newType {
 			return true // different format, keep both
 		}

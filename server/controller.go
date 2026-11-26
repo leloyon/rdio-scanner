@@ -278,6 +278,8 @@ func (controller *Controller) IngestCall(call *Call) {
 		return
 	}
 
+	call.rawSize = len(call.Audio)
+
 	if err := controller.FFMpeg.Convert(call, controller.Systems, controller.Tags, effectiveAudioMode(controller.Options.AudioConversion, controller.Options.NormalizeTalkgroups, call.System, call.Talkgroup)); err != nil {
 		controller.Logs.LogEvent(LogLevelWarn, err.Error())
 	}
@@ -299,6 +301,9 @@ func (controller *Controller) IngestCall(call *Call) {
 	}
 
 	id, err = controller.Calls.WriteCall(call, controller.Database)
+	if err == nil {
+		controller.Calls.NoteRawSize(id, call.rawSize)
+	}
 	if gated {
 		duplicateGate.Unlock()
 	}
