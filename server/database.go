@@ -127,6 +127,9 @@ func (db *Database) migrate() error {
 	if err == nil {
 		err = db.migration20220101070000(verbose)
 	}
+	if err == nil {
+		err = db.migration20261126000000()
+	}
 
 	return err
 }
@@ -372,6 +375,22 @@ func (db *Database) migration20211202094819(verbose bool) error {
 		}
 	}
 	return db.migrateWithSchema("20211202094819-v6.0.2-alter-table", queries, verbose)
+}
+
+// migration20261126000000 adds the site number that upstream v8 uses in its
+// duplicate rule. Calls already stored get site 0.
+func (db *Database) migration20261126000000() error {
+	if _, err := db.Sql.Exec("select `siteRef` from `rdioScannerCalls` limit 1"); err == nil {
+		return nil
+	}
+
+	log.Println("Adding siteRef to calls")
+
+	if _, err := db.Sql.Exec("alter table `rdioScannerCalls` add column `siteRef` integer not null default 0"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (db *Database) migration20220101070000(verbose bool) error {

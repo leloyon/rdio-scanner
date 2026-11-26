@@ -461,6 +461,7 @@ func (dirwatch *Dirwatch) parseMask(call *Call) {
 		{"hz", "#HZ", `\d+`},
 		{"khz", "#KHZ", `[\d\.]+`},
 		{"mhz", "#MHZ", `[\d\.]+`},
+		{"site", "#SITE", `\d+`},
 		{"syslbl", "#SYSLBL", `[a-zA-Z0-9,\.\ -]+`},
 		{"sys", "#SYS", `\d+`},
 		{"tag", "#TAG", `[a-zA-Z0-9\.\ -]+`},
@@ -565,6 +566,13 @@ func (dirwatch *Dirwatch) parseMask(call *Call) {
 					call.Frequency = uint(mhz * 1e6)
 				}
 			}
+		}
+	}
+
+	switch v := metaval["site"].(type) {
+	case string:
+		if i, err := strconv.Atoi(v); err == nil && i > 0 {
+			call.siteRef = uint(i)
 		}
 	}
 

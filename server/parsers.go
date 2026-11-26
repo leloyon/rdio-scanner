@@ -326,6 +326,11 @@ func ParseMultipartContent(call *Call, p *multipart.Part, b []byte) {
 			call.DateTime = call.DateTime.UTC()
 		}
 
+	case "site":
+		if n, err := strconv.Atoi(string(b)); err == nil && n > 0 {
+			call.siteRef = uint(n)
+		}
+
 	case "frequencies":
 		var f any
 		if err := json.Unmarshal(b, &f); err == nil {

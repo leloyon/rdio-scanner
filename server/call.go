@@ -45,7 +45,8 @@ type Call struct {
 	talkgroupName  any
 	talkgroupTag   any
 	units          any
-	rawSize        int // audio size before conversion (conversion pads short calls to 3 s)
+	siteRef        uint // upstream v8 site number, 0 when unknown
+	rawSize        int  // audio size before conversion (conversion pads short calls to 3 s)
 }
 
 func NewCall() *Call {
@@ -362,10 +363,10 @@ func decideDuplicateExplain(newSize int, newType string, each func(func(id uint,
 // duplicateV8Window is the fixed window upstream v8 uses (its time frame option is retired).
 const duplicateV8Window = 500 * time.Millisecond
 
-// CheckDuplicateV8 follows upstream v8: any other call on the same system and
-// talkgroup within +/-500 ms makes the new call a duplicate, the first copy wins,
-// and size, format and radio are not looked at. v8 also requires the same site,
-// but this version has no site on a call, so every call counts as the same site.
+// CheckDuplicateV8 follows upstream v8: any other call on the same system,
+// talkgroup and site within +/-500 ms makes the new call a duplicate, the first
+// copy wins, and size, format and radio are not looked at. Calls with no site
+// have site 0, so they are all the same site, as in v8.
 // The second value lists what was found, for the log.
 func (calls *Calls) CheckDuplicateV8(call *Call, db *Database) (bool, string) {
 	calls.mutex.Lock()
@@ -374,7 +375,7 @@ func (calls *Calls) CheckDuplicateV8(call *Call, db *Database) (bool, string) {
 	from := call.DateTime.Add(-duplicateV8Window)
 	to := call.DateTime.Add(duplicateV8Window)
 
-	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`source`, 0), `dateTime` from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v order by `dateTime`", from, to, call.System, call.Talkgroup)
+	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`source`, 0), `dateTime` from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v and `siteRef` = %v order by `dateTime`", from, to, call.System, call.Talkgroup, call.siteRef)
 	rows, err := db.Sql.Query(query)
 	if err != nil {
 		return false, ""
@@ -403,7 +404,7 @@ func (calls *Calls) CheckDuplicateV8(call *Call, db *Database) (bool, string) {
 		return false, ""
 	}
 
-	return true, fmt.Sprintf("v8 rules (fixed %dms window, first copy wins): new size=%d radio=%d; matched %s", duplicateV8Window.Milliseconds(), len(call.Audio), callSourceID(call.Source), strings.Join(found, "; "))
+	return true, fmt.Sprintf("v8 rules (fixed %dms window, same site %d, first copy wins): new size=%d radio=%d; matched %s", duplicateV8Window.Milliseconds(), call.siteRef, len(call.Audio), callSourceID(call.Source), strings.Join(found, "; "))
 }
 
 func (calls *Calls) DeleteCalls(ids []uint, db *Database) {
@@ -743,7 +744,7 @@ func (calls *Calls) WriteCall(call *Call, db *Database) (uint, error) {
 		}
 	}
 
-	if res, err = db.Sql.Exec("insert into `rdioScannerCalls` (`id`, `audio`, `audioName`, `audioType`, `dateTime`, `frequencies`, `frequency`, `patches`, `source`, `sources`, `system`, `talkgroup`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", call.Id, call.Audio, call.AudioName, call.AudioType, call.DateTime, frequencies, call.Frequency, patches, call.Source, sources, call.System, call.Talkgroup); err != nil {
+	if res, err = db.Sql.Exec("insert into `rdioScannerCalls` (`id`, `audio`, `audioName`, `audioType`, `dateTime`, `frequencies`, `frequency`, `patches`, `source`, `sources`, `system`, `talkgroup`, `siteRef`) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", call.Id, call.Audio, call.AudioName, call.AudioType, call.DateTime, frequencies, call.Frequency, patches, call.Source, sources, call.System, call.Talkgroup, call.siteRef); err != nil {
 		return 0, formatError(err)
 	}
 
