@@ -31,6 +31,47 @@ import (
 	"github.com/dhowden/tag"
 )
 
+var (
+	dsdFMENeoHeadRe = regexp.MustCompile(`^([0-9]{8})_([0-9]{6})_`)
+	dsdFMENeoTailRe = regexp.MustCompile(`_TGT_([0-9]+)_SRC_([0-9]+)$`)
+)
+
+// ParseDSDFMENeoMeta reads the call details from the name of a per-call WAV
+// file written by DSD-FME or DSD-Neo (option -P). Names look like
+//
+//	20261116_220202_62120_P25_BEE0034834D_3_78_GROUP_TGT_26035_SRC_4090280.wav
+//	20261124_230025_30560_DMR_CC_10_GROUP_TGT_400201_SRC_4009996.wav
+//
+// The part in the middle depends on the protocol, so only the local date and
+// time at the start and the talkgroup and source at the end are used.
+func ParseDSDFMENeoMeta(call *Call, fp string) error {
+	base := strings.TrimSuffix(filepath.Base(fp), filepath.Ext(fp))
+
+	tail := dsdFMENeoTailRe.FindStringSubmatch(base)
+	if tail == nil {
+		return fmt.Errorf("unrecognized DSD-FME/DSD-Neo file name %s", filepath.Base(fp))
+	}
+
+	tg, err := strconv.ParseUint(tail[1], 10, 32)
+	if err != nil {
+		return err
+	}
+	call.Talkgroup = uint(tg)
+
+	if src, err := strconv.ParseUint(tail[2], 10, 32); err == nil && src > 0 {
+		call.Source = uint(src)
+	}
+
+	// DSD names files with the local time of the machine that runs it
+	if head := dsdFMENeoHeadRe.FindStringSubmatch(base); head != nil {
+		if t, err := time.ParseInLocation("20060102150405", head[1]+head[2], time.Local); err == nil {
+			call.DateTime = t.UTC()
+		}
+	}
+
+	return nil
+}
+
 func ParseDSDPlusMeta(call *Call, fp string) error {
 	dir := filepath.Dir(fp)
 	base := strings.TrimSuffix(filepath.Base(fp), filepath.Ext(fp))

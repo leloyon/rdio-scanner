@@ -40,6 +40,7 @@
                         Dirwatch type defines how the metadata are obtained.
                         <ul>
                             <li><b>Default</b> - Extract the metadata from a custom mask.</li>
+                            <li><b>DSD-FME / DSD-Neo</b> - Extract the talkgroup, source and time from the per-call WAV file names (option <code>-P</code>).</li>
                             <li><b>DSDPlus Fast Lane</b> - Extract the metadata from the file path.</li>
                             <li><b>SDR Trunk</b> - Extract the metadata from the MP3 tags defined on the SDR Trunk's aliases tab.</li>
                             <li><b>Trunk Recorder</b> - Extract the metadata from the json file.</li>
@@ -49,6 +50,7 @@
                 <mat-form-field floatLabel="never">
                     <mat-select formControlName="type" placeholder="Type">
                         <mat-option value="default">Default</mat-option>
+                        <mat-option value="dsd-fme-neo">DSD-FME / DSD-Neo</mat-option>
                         <mat-option value="dsdplus">DSDPlus Fast Lane</mat-option>
                         <mat-option value="sdr-trunk">SDR Trunk</mat-option>
                         <mat-option value="trunk-recorder">Trunk Recorder</mat-option>
@@ -61,6 +63,9 @@
                     <span class="mat-caption">
                         Path of the
                         <ng-container [ngSwitch]="dirWatch.get('type')?.value">
+                            <ng-container *ngSwitchCase="'dsd-fme-neo'">
+                                per-call WAV (<b>-7</b>) output
+                            </ng-container>
                             <ng-container *ngSwitchCase="'dsdplus'">
                                 <b>Record</b>, <b>1R-Record</b> or <b>VC-Record</b>
                             </ng-container>
@@ -90,7 +95,7 @@
                     </mat-error>
                 </mat-form-field>
             </div>
-            <div class="row" *ngIf="['default','dsdplus','trunk-recorder'].includes(dirWatch.get('type')?.value)">
+            <div class="row" *ngIf="['default','dsd-fme-neo','dsdplus','trunk-recorder'].includes(dirWatch.get('type')?.value)">
                 <p>
                     <span class="mat-body">Extension</span><br>
                     <span class="mat-caption">The audio call extension to monitor without the period. Ex.: "mp3",
@@ -103,7 +108,7 @@
                     </mat-error>
                 </mat-form-field>
             </div>
-            <div class="row" *ngIf="['default','dsdplus'].includes(dirWatch.get('type')?.value)">
+            <div class="row" *ngIf="['default','dsd-fme-neo','dsdplus'].includes(dirWatch.get('type')?.value)">
                 <p>
                     <span class="mat-body">System</span><br>
                     <span class="mat-caption">System to where the audio files should go.</span>

@@ -38,6 +38,7 @@ import (
 
 const (
 	DirwatchTypeDefault       = "default"
+	DirwatchTypeDSDFMENeo     = "dsd-fme-neo"
 	DirwatchTypeDSDPlus       = "dsdplus"
 	DirwatchTypeSdrTrunk      = "sdr-trunk"
 	DirwatchTypeTrunkRecorder = "trunk-recorder"
@@ -145,6 +146,8 @@ func (dirwatch *Dirwatch) Ingest(p string) {
 	var err error
 
 	switch dirwatch.Kind {
+	case DirwatchTypeDSDFMENeo:
+		err = dirwatch.ingestDSDFMENeo(p)
 	case DirwatchTypeDSDPlus:
 		err = dirwatch.ingestDSDPlus(p)
 	case DirwatchTypeTrunkRecorder:
@@ -260,6 +263,73 @@ func (dirwatch *Dirwatch) ingestDSDPlus(p string) error {
 	}
 
 	if err = ParseDSDPlusMeta(call, p); err != nil {
+		return err
+	}
+
+	if ok, err := call.IsValid(); ok {
+		dirwatch.controller.Ingest <- call
+
+		if dirwatch.DeleteAfter {
+			if err = os.Remove(p); err != nil {
+				return err
+			}
+		}
+
+	} else {
+		return err
+	}
+
+	return nil
+}
+
+// ingestDSDFMENeo ingests the per-call WAV files (-P) written by DSD-FME and
+// DSD-Neo. The talkgroup, source and time come from the file name; the system
+// comes from the dirwatch settings.
+func (dirwatch *Dirwatch) ingestDSDFMENeo(p string) error {
+	var (
+		err error
+		ext string
+	)
+
+	switch v := dirwatch.Extension.(type) {
+	case string:
+		if len(v) > 0 {
+			ext = fmt.Sprintf(".%s", v)
+		} else {
+			ext = ".wav"
+		}
+	default:
+		ext = ".wav"
+	}
+
+	// DSD writes each call to a temporary file without an extension and renames
+	// it when the call ends, so anything without the extension is ignored here.
+	if !strings.EqualFold(path.Ext(p), ext) {
+		return nil
+	}
+
+	call := NewCall()
+
+	call.AudioName = filepath.Base(p)
+	call.AudioType = mime.TypeByExtension(path.Ext(p))
+	call.DateTime = time.Now().UTC()
+	call.Frequency = dirwatch.Frequency
+
+	switch v := dirwatch.SystemId.(type) {
+	case uint:
+		call.System = v
+	}
+
+	switch v := dirwatch.TalkgroupId.(type) {
+	case uint:
+		call.Talkgroup = v
+	}
+
+	if call.Audio, err = readStableFile(dirwatch.controller, p); err != nil {
+		return err
+	}
+
+	if err = ParseDSDFMENeoMeta(call, p); err != nil {
 		return err
 	}
 
