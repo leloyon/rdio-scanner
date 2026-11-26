@@ -16,3 +16,6 @@
 package main
 
 const Version = "6.6.3"
+
+// Edition is the Lel Edition number, set by the release build.
+var Edition = "dev"

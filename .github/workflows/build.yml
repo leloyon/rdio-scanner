@@ -78,7 +78,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p ../out/pkg
-          go build -trimpath -ldflags "-s -w" -o ../out/pkg/${{ matrix.bin }}
+          E="${{ inputs.edition }}"; E="${E:-test}"
+          go build -trimpath -ldflags "-s -w -X main.Edition=${E}" -o ../out/pkg/${{ matrix.bin }}
       - name: Zip
         run: |
           E="${{ inputs.edition }}"; E="${E:-test}"

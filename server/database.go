@@ -65,6 +65,10 @@ func NewDatabase(config *Config) *Database {
 	database.Sql.SetMaxIdleConns(25)
 	database.Sql.SetMaxOpenConns(25)
 
+	if config.DbType == DbTypeSqlite {
+		database.backupBeforeUpdate()
+	}
+
 	if err = database.migrate(); err != nil {
 		log.Fatal(err)
 	}
