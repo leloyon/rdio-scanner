@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"mime"
 	"mime/multipart"
 	"path"
@@ -33,8 +34,16 @@ import (
 
 var (
 	dsdFMENeoHeadRe = regexp.MustCompile(`^([0-9]{8})_([0-9]{6})_`)
-	dsdFMENeoTailRe = regexp.MustCompile(`_TGT_([0-9]+)_SRC_([0-9]+)$`)
+	dsdFMENeoTailRe = regexp.MustCompile(`_TGT_(.+?)_SRC_(.+)$`)
 )
+
+// dsdCallsignID gives a callsign a stable number (above the 24 bit range of
+// real radio IDs), because the scanner identifies units by number.
+func dsdCallsignID(callsign string) uint {
+	h := fnv.New32a()
+	h.Write([]byte(strings.ToUpper(callsign)))
+	return uint(16777216 + h.Sum32()%1000000000)
+}
 
 // ParseDSDFMENeoMeta reads the call details from the name of a per-call WAV
 // file written by DSD-FME or DSD-Neo (option -P). Names look like
@@ -43,7 +52,12 @@ var (
 //	20261124_230025_30560_DMR_CC_10_GROUP_TGT_400201_SRC_4009996.wav
 //
 // The part in the middle depends on the protocol, so only the local date and
-// time at the start and the talkgroup and source at the end are used.
+// time at the start and the target and source at the end are used.
+//
+// Protocols that identify stations by callsign (M17, YSF, D-STAR) put text
+// there instead of numbers: a callsign target uses the Talkgroup already set on
+// call (from the dirwatch settings), and a callsign source gets a stable
+// number made from the callsign, with the callsign as its unit label.
 func ParseDSDFMENeoMeta(call *Call, fp string) error {
 	base := strings.TrimSuffix(filepath.Base(fp), filepath.Ext(fp))
 
@@ -52,14 +66,31 @@ func ParseDSDFMENeoMeta(call *Call, fp string) error {
 		return fmt.Errorf("unrecognized DSD-FME/DSD-Neo file name %s", filepath.Base(fp))
 	}
 
-	tg, err := strconv.ParseUint(tail[1], 10, 32)
-	if err != nil {
-		return err
-	}
-	call.Talkgroup = uint(tg)
+	// DSD replaces spaces with underscores
+	tgt := strings.TrimSpace(strings.ReplaceAll(tail[1], "_", " "))
+	src := strings.TrimSpace(strings.ReplaceAll(tail[2], "_", " "))
 
-	if src, err := strconv.ParseUint(tail[2], 10, 32); err == nil && src > 0 {
-		call.Source = uint(src)
+	if tg, err := strconv.ParseUint(tgt, 10, 32); err == nil {
+		call.Talkgroup = uint(tg)
+
+	} else if call.Talkgroup == 0 {
+		return fmt.Errorf("target %q is not a number, set a Talkgroup in the dirwatch settings: %s", tgt, filepath.Base(fp))
+
+	} else if tgt != "" {
+		call.talkgroupLabel = tgt
+	}
+
+	if n, err := strconv.ParseUint(src, 10, 32); err == nil {
+		if n > 0 {
+			call.Source = uint(n)
+		}
+
+	} else if src != "" {
+		id := dsdCallsignID(src)
+		call.Source = id
+		units := NewUnits()
+		units.Add(id, src)
+		call.units = units
 	}
 
 	// DSD names files with the local time of the machine that runs it

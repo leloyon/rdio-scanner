@@ -125,10 +125,15 @@
                     </mat-error>
                 </mat-form-field>
             </div>
-            <div class="row" *ngIf="['default','dsdplus'].includes(dirWatch.get('type')?.value)">
+            <div class="row" *ngIf="['default','dsd-fme-neo','dsdplus'].includes(dirWatch.get('type')?.value)">
                 <p>
                     <span class="mat-body">Talkgroup</span><br>
-                    <span class="mat-caption">Talkgroup to where the audio files should go.</span>
+                    <span class="mat-caption">
+                        <ng-container *ngIf="dirWatch.get('type')?.value === 'dsd-fme-neo'; else defaultTgText">
+                            Optional. Only used for calls whose target is a callsign (M17, YSF, D-STAR) instead of a number.
+                        </ng-container>
+                        <ng-template #defaultTgText>Talkgroup to where the audio files should go.</ng-template>
+                    </span>
                 </p>
                 <mat-form-field floatLabel="never">
                     <mat-select formControlName="talkgroupId" placeholder="Talkgroup">

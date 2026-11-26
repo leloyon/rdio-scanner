@@ -52,3 +52,35 @@ func TestParseDSDFMENeoMeta(t *testing.T) {
 		}
 	}
 }
+
+func TestParseDSDFMENeoCallsigns(t *testing.T) {
+	// numeric target kept, callsign source gets a stable id and a unit label
+	call := NewCall()
+	call.Talkgroup = 99
+	if err := ParseDSDFMENeoMeta(call, "20261124_230025_1_M17_X_TGT_ALL_SRC_W1ABC.wav"); err != nil {
+		t.Fatal(err)
+	}
+	if call.Talkgroup != 99 {
+		t.Errorf("talkgroup = %d, want default 99", call.Talkgroup)
+	}
+	id, ok := call.Source.(uint)
+	if !ok || id < 16777216 {
+		t.Fatalf("source = %v, want a generated id", call.Source)
+	}
+	call2 := NewCall()
+	call2.Talkgroup = 99
+	if err := ParseDSDFMENeoMeta(call2, "20261124_230026_1_M17_X_TGT_ALL_SRC_w1abc.wav"); err != nil {
+		t.Fatal(err)
+	}
+	if call2.Source != call.Source {
+		t.Errorf("callsign id not stable: %v vs %v", call.Source, call2.Source)
+	}
+	if call.units == nil {
+		t.Errorf("unit label missing")
+	}
+
+	// callsign target with no default talkgroup must fail
+	if err := ParseDSDFMENeoMeta(NewCall(), "20261124_230025_1_YSF_X_TGT_ALL_SRC_W1ABC.wav"); err == nil {
+		t.Errorf("expected error without default talkgroup")
+	}
+}
