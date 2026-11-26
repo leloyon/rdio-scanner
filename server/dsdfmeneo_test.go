@@ -84,3 +84,24 @@ func TestParseDSDFMENeoCallsigns(t *testing.T) {
 		t.Errorf("expected error without default talkgroup")
 	}
 }
+
+func TestStaleDSDTempFile(t *testing.T) {
+	now := time.Now()
+	old, fresh := now.Add(-time.Hour), now.Add(-time.Minute)
+	cases := []struct {
+		name string
+		mod  time.Time
+		want bool
+	}{
+		{"TEMP_20261123_213122_195A", old, true},
+		{"TEMP_20261123_213122_195A", fresh, false}, // still being written
+		{"20261116_220202_62120_P25_X_3_78_GROUP_TGT_26035_SRC_4090280.wav", old, false},
+		{"TEMP_20261123_213122_195A.wav", old, false},
+		{"notes", old, false},
+	}
+	for _, c := range cases {
+		if got := isStaleDSDTempFile(c.name, c.mod, now); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+}

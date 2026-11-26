@@ -27,7 +27,10 @@
                     <span class="mat-body">Delete After</span><br>
                     <span class="mat-caption">Delete the audio file after being ingested. If activated, all pre-existing
                         audio files will be ingested and deleted as soon as the server starts. If not activated,
-                        pre-existing audio files are neither ingested nor deleted.</span>
+                        pre-existing audio files are neither ingested nor deleted.
+                        <ng-container *ngIf="dirWatch.get('type')?.value === 'dsd-fme-neo'">
+                            For DSD-FME / DSD-Neo, leftover TEMP_ files that have not changed in 30 minutes are also removed.
+                        </ng-container></span>
                 </p>
                 <div>
                     <mat-slide-toggle color="primary" formControlName="deleteAfter"></mat-slide-toggle>

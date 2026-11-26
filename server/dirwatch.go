@@ -682,6 +682,10 @@ func (dirwatch *Dirwatch) Start(controller *Controller) error {
 		delay = time.Duration(2000) * time.Millisecond
 	}
 
+	if dirwatch.Kind == DirwatchTypeDSDFMENeo && dirwatch.DeleteAfter {
+		go dirwatch.sweepDSDTempFiles(dirwatch.watcher)
+	}
+
 	go func() {
 		logError := func(err error) {
 			controller.Logs.LogEvent(LogLevelError, fmt.Sprintf("dirwatch.watcher: %v", err.Error()))
@@ -802,6 +806,39 @@ func (dirwatch *Dirwatch) Start(controller *Controller) error {
 	}()
 
 	return nil
+}
+
+// DSD-FME and DSD-Neo leave "TEMP_..." files behind when a call is interrupted.
+// With "delete after import" on, the ones that stopped growing are removed.
+const dsdTempMaxAge = 30 * time.Minute
+
+func isStaleDSDTempFile(name string, modTime, now time.Time) bool {
+	return strings.HasPrefix(name, "TEMP_") && filepath.Ext(name) == "" && now.Sub(modTime) > dsdTempMaxAge
+}
+
+func (dirwatch *Dirwatch) sweepDSDTempFiles(w *fsnotify.Watcher) {
+	sweep := func() {
+		filepath.WalkDir(dirwatch.Directory, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			if info, err := d.Info(); err == nil && isStaleDSDTempFile(d.Name(), info.ModTime(), time.Now()) {
+				if os.Remove(p) == nil {
+					dirwatch.controller.Logs.LogEvent(LogLevelInfo, fmt.Sprintf("dirwatch: removed stale DSD temp file %s", p))
+				}
+			}
+			return nil
+		})
+	}
+
+	sweep()
+
+	for range time.Tick(10 * time.Minute) {
+		if dirwatch.watcher != w {
+			return
+		}
+		sweep()
+	}
 }
 
 func (dirwatch *Dirwatch) Stop() {
