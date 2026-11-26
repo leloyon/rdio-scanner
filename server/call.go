@@ -359,6 +359,53 @@ func decideDuplicateExplain(newSize int, newType string, each func(func(id uint,
 	return DuplicateNone, nil, reasons
 }
 
+// duplicateV8Window is the fixed window upstream v8 uses (its time frame option is retired).
+const duplicateV8Window = 500 * time.Millisecond
+
+// CheckDuplicateV8 follows upstream v8: any other call on the same system and
+// talkgroup within +/-500 ms makes the new call a duplicate, the first copy wins,
+// and size, format and radio are not looked at. v8 also requires the same site,
+// but this version has no site on a call, so every call counts as the same site.
+// The second value lists what was found, for the log.
+func (calls *Calls) CheckDuplicateV8(call *Call, db *Database) (bool, string) {
+	calls.mutex.Lock()
+	defer calls.mutex.Unlock()
+
+	from := call.DateTime.Add(-duplicateV8Window)
+	to := call.DateTime.Add(duplicateV8Window)
+
+	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`source`, 0), `dateTime` from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v order by `dateTime`", from, to, call.System, call.Talkgroup)
+	rows, err := db.Sql.Query(query)
+	if err != nil {
+		return false, ""
+	}
+	defer rows.Close()
+
+	found := []string{}
+	for rows.Next() {
+		var (
+			id   uint
+			size int
+			src  float64
+			dt   any
+		)
+		if rows.Scan(&id, &size, &src, &dt) != nil {
+			continue
+		}
+		gap := time.Duration(0)
+		if t, err := db.ParseDateTime(dt); err == nil {
+			gap = t.Sub(call.DateTime)
+		}
+		found = append(found, fmt.Sprintf("#%d %+dms size=%d radio=%d", id, gap.Milliseconds(), size, uint(src)))
+	}
+
+	if len(found) == 0 {
+		return false, ""
+	}
+
+	return true, fmt.Sprintf("v8 rules (fixed %dms window, first copy wins): new size=%d radio=%d; matched %s", duplicateV8Window.Milliseconds(), len(call.Audio), callSourceID(call.Source), strings.Join(found, "; "))
+}
+
 func (calls *Calls) DeleteCalls(ids []uint, db *Database) {
 	calls.mutex.Lock()
 	defer calls.mutex.Unlock()
