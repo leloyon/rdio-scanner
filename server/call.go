@@ -131,8 +131,36 @@ const (
 	DuplicateReplace                        // new call is longer, store it and delete the old copies
 )
 
-// Two calls are copies of one transmission only when their sizes are within this ratio.
+// Two calls are copies of one transmission only when their sizes are within this
+// ratio, unless they also come from the same radio (see below).
 const duplicateSizeRatio = 0.6
+
+// duplicateGate makes "check for a duplicate, then store" one step, so two
+// copies finishing at the same moment cannot both pass the check.
+var duplicateGate sync.Mutex
+
+// callSourceID returns the radio ID of a call, or 0 when unknown.
+func callSourceID(v any) uint {
+	switch n := v.(type) {
+	case uint:
+		return n
+	case int:
+		if n > 0 {
+			return uint(n)
+		}
+	case uint64:
+		return uint(n)
+	case int64:
+		if n > 0 {
+			return uint(n)
+		}
+	case float64:
+		if n > 0 {
+			return uint(n)
+		}
+	}
+	return 0
+}
 
 // CheckDuplicate keeps the longest copy of a transmission and keeps different
 // audio formats separate. A short key-up next to a long conversation on the
@@ -145,7 +173,7 @@ func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (
 	from := call.DateTime.Add(-d)
 	to := call.DateTime.Add(d)
 
-	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`audioType`, '') from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v", from, to, call.System, call.Talkgroup)
+	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`audioType`, ''), coalesce(`source`, 0) from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v", from, to, call.System, call.Talkgroup)
 	rows, err := db.Sql.Query(query)
 	if err != nil {
 		return DuplicateNone, nil
@@ -158,17 +186,20 @@ func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (
 		newType = v
 	}
 
-	return decideDuplicate(newSize, newType, func(yield func(id uint, size int, atype string) bool) {
+	newSource := callSourceID(call.Source)
+
+	return decideDuplicateSrc(newSize, newType, func(yield func(id uint, size int, atype string, sameSource bool) bool) {
 		for rows.Next() {
 			var (
 				id    uint
 				size  int
 				atype string
+				src   float64
 			)
-			if rows.Scan(&id, &size, &atype) != nil {
+			if rows.Scan(&id, &size, &atype, &src) != nil {
 				continue
 			}
-			if !yield(id, size, atype) {
+			if !yield(id, size, atype, newSource > 0 && uint(src) == newSource) {
 				return
 			}
 		}
@@ -177,9 +208,19 @@ func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (
 
 // decideDuplicate holds the pure decision rules (unit tested).
 func decideDuplicate(newSize int, newType string, each func(func(id uint, size int, atype string) bool)) (DuplicateAction, []uint) {
+	return decideDuplicateSrc(newSize, newType, func(yield func(uint, int, string, bool) bool) {
+		each(func(id uint, size int, atype string) bool { return yield(id, size, atype, false) })
+	})
+}
+
+// decideDuplicateSrc is decideDuplicate that also knows whether an existing call
+// came from the same radio. The same radio on the same talkgroup at the same
+// moment is the same transmission, even when one site heard only part of it, so
+// the size rule is skipped.
+func decideDuplicateSrc(newSize int, newType string, each func(func(id uint, size int, atype string, sameSource bool) bool)) (DuplicateAction, []uint) {
 	replace := []uint{}
 	reject := false
-	each(func(id uint, size int, atype string) bool {
+	each(func(id uint, size int, atype string, sameSource bool) bool {
 		if newType != "" && atype != "" && atype != newType {
 			return true // different format, keep both
 		}
@@ -187,7 +228,7 @@ func decideDuplicate(newSize int, newType string, each func(func(id uint, size i
 		if small > big {
 			small, big = big, small
 		}
-		if big > 0 && float64(small)/float64(big) < duplicateSizeRatio {
+		if !sameSource && big > 0 && float64(small)/float64(big) < duplicateSizeRatio {
 			return true // different transmissions
 		}
 		if newSize > size {

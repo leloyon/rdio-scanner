@@ -60,3 +60,30 @@ func TestPhantomOnlyUnnamed(t *testing.T) {
 		t.Fatal("4501 is unnamed")
 	}
 }
+
+func TestSameRadioTruncatedCopyIsDuplicate(t *testing.T) {
+	// a site that heard only the start of a transmission, then the full copy from another site
+	feedSrc := func(rs []rec, same bool) func(func(uint, int, string, bool) bool) {
+		return func(y func(uint, int, string, bool) bool) {
+			for _, r := range rs {
+				if !y(r.id, r.size, r.atype, same) {
+					return
+				}
+			}
+		}
+	}
+	a, ids := decideDuplicateSrc(200000, "audio/mpeg", feedSrc([]rec{{1, 20000, "audio/mpeg"}}, true))
+	if a != DuplicateReplace || len(ids) != 1 {
+		t.Fatal(a, ids)
+	}
+	if a, _ := decideDuplicateSrc(20000, "audio/mpeg", feedSrc([]rec{{1, 200000, "audio/mpeg"}}, true)); a != DuplicateReject {
+		t.Fatal(a)
+	}
+	// a different radio keeps the old behaviour
+	if a, _ := decideDuplicateSrc(200000, "audio/mpeg", feedSrc([]rec{{1, 20000, "audio/mpeg"}}, false)); a != DuplicateNone {
+		t.Fatal(a)
+	}
+	if callSourceID(uint(4090280)) != 4090280 || callSourceID(nil) != 0 {
+		t.Fatal("callSourceID")
+	}
+}

@@ -282,10 +282,14 @@ func (controller *Controller) IngestCall(call *Call) {
 		controller.Logs.LogEvent(LogLevelWarn, err.Error())
 	}
 
-	if !controller.Options.DisableDuplicateDetection {
+	gated := !controller.Options.DisableDuplicateDetection
+	if gated {
+		duplicateGate.Lock()
+
 		action, ids := controller.Calls.CheckDuplicate(call, controller.Options.DuplicateDetectionTimeFrame, controller.Database)
 		switch action {
 		case DuplicateReject:
+			duplicateGate.Unlock()
 			logCall(call, LogLevelWarn, "duplicate call rejected (a longer copy exists)")
 			return
 		case DuplicateReplace:
@@ -294,7 +298,12 @@ func (controller *Controller) IngestCall(call *Call) {
 		}
 	}
 
-	if id, err = controller.Calls.WriteCall(call, controller.Database); err == nil {
+	id, err = controller.Calls.WriteCall(call, controller.Database)
+	if gated {
+		duplicateGate.Unlock()
+	}
+
+	if err == nil {
 		call.Id = id
 		call.systemLabel = system.Label
 		call.talkgroupLabel = talkgroup.Label
