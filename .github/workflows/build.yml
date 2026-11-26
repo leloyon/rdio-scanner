@@ -1,0 +1,105 @@
+name: Build
+
+# Manual only: Actions tab -> Build -> Run workflow.
+# Leave "release_tag" empty to just get downloadable zips (Artifacts, kept 14 days).
+# Fill it in (for example 6.6.3-lel1) to also publish a GitHub release with the zips.
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional release tag, e.g. 6.6.3-lel1 (empty = no release)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  webapp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Build the web app
+        working-directory: client
+        run: |
+          npm ci --loglevel=error --no-progress
+          npm run build
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.19"
+          cache-dependency-path: server/go.sum
+      - name: Check the server compiles and the dirwatch parser tests pass
+        working-directory: server
+        run: |
+          go vet ./...
+          go test -run 'DSDFMENeo' ./...
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webapp
+          path: server/webapp
+          retention-days: 1
+
+  server:
+    needs: webapp
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: windows, goarch: amd64, label: windows-amd64, bin: rdio-scanner.exe }
+          - { goos: linux,   goarch: amd64, label: linux-amd64,   bin: rdio-scanner }
+          - { goos: linux,   goarch: arm64, label: linux-arm64,   bin: rdio-scanner }
+          - { goos: linux,   goarch: arm,   label: linux-arm,     bin: rdio-scanner }
+          - { goos: darwin,  goarch: amd64, label: macos-amd64,   bin: rdio-scanner }
+          - { goos: darwin,  goarch: arm64, label: macos-arm64,   bin: rdio-scanner }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: webapp
+          path: server/webapp
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.19"
+          cache-dependency-path: server/go.sum
+      - name: Build
+        working-directory: server
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p ../out/pkg
+          go build -trimpath -ldflags "-s -w" -o ../out/pkg/${{ matrix.bin }}
+      - name: Zip
+        run: |
+          cp LICENSE out/pkg/ || true
+          cd out/pkg
+          zip -q ../rdio-scanner-${{ matrix.label }}.zip *
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rdio-scanner-${{ matrix.label }}
+          path: out/rdio-scanner-${{ matrix.label }}.zip
+          retention-days: 14
+
+  release:
+    needs: server
+    if: ${{ inputs.release_tag != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rdio-scanner-*
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: ${{ inputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          files: dist/*.zip
