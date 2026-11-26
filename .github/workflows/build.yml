@@ -99,14 +99,14 @@ jobs:
     if: ${{ inputs.edition != '' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: server/version.go
       - uses: actions/download-artifact@v4
         with:
           pattern: rdio-scanner-*
           path: dist
           merge-multiple: true
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: server/version.go
       - name: Work out the tag
         id: tag
         run: |
