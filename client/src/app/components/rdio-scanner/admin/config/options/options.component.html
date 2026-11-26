@@ -94,19 +94,10 @@
     </div>
     <div class="row">
         <p>
-            <span class="mat-body">Duplicate Call Detection Time Frame</span><br>
-            <span class="mat-caption">New incoming calls will be rejected if a call already exists in the database with
-                a start time of +/- this delay in milliseconds.</span>
+            <span class="mat-body">Duplicate Call Detection Rules</span><br>
+            <span class="mat-caption">A new call is rejected when a call on the same system, talkgroup and site already
+                exists with a start time within 500 ms of it (fixed, as in Rdio Scanner v8). The first copy is kept.</span>
         </p>
-        <mat-form-field>
-            <input type="number" min="0" step="1" matInput formControlName="duplicateDetectionTimeFrame">
-            <mat-error *ngIf="form?.get('duplicateDetectionTimeFrame')?.hasError('required')">
-                Duplicate call time frame is required
-            </mat-error>
-            <mat-error *ngIf="form?.get('duplicateDetectionTimeFrame')?.hasError('min')">
-                Duplicate call time frame is invalid
-            </mat-error>
-        </mat-form-field>
     </div>
     <div class="row">
         <p>

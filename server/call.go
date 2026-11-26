@@ -46,7 +46,6 @@ type Call struct {
 	talkgroupTag   any
 	units          any
 	siteRef        uint // upstream v8 site number, 0 when unknown
-	rawSize        int  // audio size before conversion (conversion pads short calls to 3 s)
 }
 
 func NewCall() *Call {
@@ -115,296 +114,41 @@ func (call *Call) ToJson() (string, error) {
 }
 
 type Calls struct {
-	mutex   sync.Mutex
-	rawSize map[uint]int // recent call id -> audio size before conversion
+	mutex sync.Mutex
 }
 
 func NewCalls() *Calls {
 	return &Calls{
-		mutex:   sync.Mutex{},
-		rawSize: map[uint]int{},
+		mutex: sync.Mutex{},
 	}
 }
-
-// scaleToStored turns an existing call's real size into the units of the new
-// call's stored (converted) size so the two can be compared, or returns the
-// stored size when the real sizes are not known.
-func scaleToStored(existingRaw, newRaw, newStored, existingStored int) int {
-	if existingRaw <= 0 || newRaw <= 0 || newStored <= 0 {
-		return existingStored
-	}
-	return int(float64(existingRaw) * float64(newStored) / float64(newRaw))
-}
-
-// NoteRawSize remembers how long a stored call really was. Conversion pads every
-// call to at least 3 seconds, so two copies of a short call look the same size
-// once stored, and the longer one can't be told from the shorter one.
-func (calls *Calls) NoteRawSize(id uint, size int) {
-	if size <= 0 {
-		return
-	}
-	calls.mutex.Lock()
-	defer calls.mutex.Unlock()
-	if calls.rawSize == nil {
-		calls.rawSize = map[uint]int{}
-	}
-	calls.rawSize[id] = size
-	if len(calls.rawSize) > 2000 {
-		for k := range calls.rawSize {
-			if k+1000 < id {
-				delete(calls.rawSize, k)
-			}
-		}
-	}
-}
-
-// DuplicateAction is the v4 duplicate decision.
-type DuplicateAction int
-
-const (
-	DuplicateNone    DuplicateAction = iota // not a duplicate, store it
-	DuplicateReject                         // a longer copy already exists
-	DuplicateReplace                        // new call is longer, store it and delete the old copies
-)
-
-// Two calls are copies of one transmission only when their sizes are within this
-// ratio, unless they also come from the same radio (see below).
-const duplicateSizeRatio = 0.6
 
 // duplicateGate makes "check for a duplicate, then store" one step, so two
 // copies finishing at the same moment cannot both pass the check.
 var duplicateGate sync.Mutex
 
-// callSourceID returns the radio ID of a call, or 0 when unknown.
-func callSourceID(v any) uint {
-	switch n := v.(type) {
-	case uint:
-		return n
-	case int:
-		if n > 0 {
-			return uint(n)
-		}
-	case uint64:
-		return uint(n)
-	case int64:
-		if n > 0 {
-			return uint(n)
-		}
-	case float64:
-		if n > 0 {
-			return uint(n)
-		}
-	}
-	return 0
-}
-
-// CheckDuplicate keeps the longest copy of a transmission and keeps different
-// audio formats separate. A short key-up next to a long conversation on the
-// same talkgroup is treated as a different transmission and both are kept.
-//
-// The third value is a one line explanation of what was compared and why, for
-// the log. It is empty when no other call on the same talkgroup is close in time.
-func (calls *Calls) CheckDuplicate(call *Call, msTimeFrame uint, db *Database) (DuplicateAction, []uint, string) {
-	calls.mutex.Lock()
-	defer calls.mutex.Unlock()
-
-	d := time.Duration(msTimeFrame) * time.Millisecond
-
-	// look wider than the window so a copy that just missed it shows up in the log
-	wide := 10 * time.Second
-	if 3*d > wide {
-		wide = 3 * d
-	}
-	from := call.DateTime.Add(-wide)
-	to := call.DateTime.Add(wide)
-
-	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`audioType`, ''), coalesce(`source`, 0), `dateTime` from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v order by `dateTime`", from, to, call.System, call.Talkgroup)
-	rows, err := db.Sql.Query(query)
-	if err != nil {
-		return DuplicateNone, nil, ""
-	}
-	defer rows.Close()
-
-	newSize := len(call.Audio)
-	newType := ""
-	if v, ok := call.AudioType.(string); ok {
-		newType = v
-	}
-	newSource := callSourceID(call.Source)
-
-	notes := []string{}
-
-	action, ids, reasons := decideDuplicateExplain(newSize, newType, func(yield func(id uint, size int, atype string, source int) bool) {
-		for rows.Next() {
-			var (
-				id    uint
-				size  int
-				atype string
-				src   float64
-				dt    any
-			)
-			if rows.Scan(&id, &size, &atype, &src, &dt) != nil {
-				continue
-			}
-
-			gap := time.Duration(0)
-			if t, err := db.ParseDateTime(dt); err == nil {
-				gap = t.Sub(call.DateTime)
-			}
-			absGap := gap
-			if absGap < 0 {
-				absGap = -absGap
-			}
-
-			info := fmt.Sprintf("#%d %+dms size=%d type=%s radio=%d", id, gap.Milliseconds(), size, atype, uint(src))
-
-			if absGap > d {
-				notes = append(notes, fmt.Sprintf("%s: outside the %dms window, not compared", info, msTimeFrame))
-				continue
-			}
-
-			// compare the real lengths when both are known, scaled to the stored size
-			if raw, ok := calls.rawSize[id]; ok {
-				size = scaleToStored(raw, call.rawSize, newSize, size)
-			}
-			source := 0
-			if newSource > 0 && src > 0 {
-				if uint(src) == newSource {
-					source = 1
-				} else {
-					source = -1
-				}
-			}
-			notes = append(notes, info) // the reason is added below, in order
-			if !yield(id, size, atype, source) {
-				return
-			}
-		}
-	})
-
-	if len(notes) == 0 {
-		return action, ids, ""
-	}
-
-	// attach each decision reason to the compared candidate it belongs to
-	r := 0
-	for i := range notes {
-		if !strings.Contains(notes[i], "window, not compared") && r < len(reasons) {
-			notes[i] += ": " + reasons[r]
-			r++
-		}
-	}
-
-	decision := map[DuplicateAction]string{DuplicateNone: "stored", DuplicateReject: "rejected", DuplicateReplace: "replaces older copy"}[action]
-
-	return action, ids, fmt.Sprintf("duplicate check (window %dms): new size=%d (real %d) type=%s radio=%d -> %s; nearby: %s", msTimeFrame, newSize, call.rawSize, newType, newSource, decision, strings.Join(notes, "; "))
-}
-
-// decideDuplicate holds the pure decision rules (unit tested).
-func decideDuplicate(newSize int, newType string, each func(func(id uint, size int, atype string) bool)) (DuplicateAction, []uint) {
-	return decideDuplicateSrc(newSize, newType, func(yield func(uint, int, string, int) bool) {
-		each(func(id uint, size int, atype string) bool { return yield(id, size, atype, 0) })
-	})
-}
-
-// decideDuplicateSrc is decideDuplicate that also knows about the radio:
-// source is 1 when an existing call came from the same radio, -1 when it came
-// from a different radio, 0 when either is unknown. The same radio on the same
-// talkgroup at the same moment is the same transmission even when one site heard
-// only part of it, so the size rule is skipped. A different radio is a different
-// transmission, so both are kept.
-func decideDuplicateSrc(newSize int, newType string, each func(func(id uint, size int, atype string, source int) bool)) (DuplicateAction, []uint) {
-	action, ids, _ := decideDuplicateExplain(newSize, newType, each)
-	return action, ids
-}
-
-// decideDuplicateExplain is decideDuplicateSrc that also returns, for each
-// candidate it was given (in order), why it was kept apart or counted as a copy.
-func decideDuplicateExplain(newSize int, newType string, each func(func(id uint, size int, atype string, source int) bool)) (DuplicateAction, []uint, []string) {
-	replace := []uint{}
-	reasons := []string{}
-	reject := false
-	each(func(id uint, size int, atype string, source int) bool {
-		if source < 0 {
-			reasons = append(reasons, "different radio, kept both")
-			return true
-		}
-		sameSource := source > 0
-		if newType != "" && atype != "" && atype != newType {
-			reasons = append(reasons, fmt.Sprintf("different format (%s vs %s), kept both", atype, newType))
-			return true
-		}
-		small, big := size, newSize
-		if small > big {
-			small, big = big, small
-		}
-		if !sameSource && big > 0 && float64(small)/float64(big) < duplicateSizeRatio {
-			reasons = append(reasons, fmt.Sprintf("sizes too different (%d vs %d, below %.0f%%), kept both", size, newSize, duplicateSizeRatio*100))
-			return true
-		}
-		if newSize > size {
-			replace = append(replace, id)
-			reasons = append(reasons, fmt.Sprintf("same transmission, new copy is longer (%d > %d), replaces it", newSize, size))
-			return true
-		}
-		reasons = append(reasons, fmt.Sprintf("same transmission, stored copy is as long or longer (%d >= %d), new copy rejected", size, newSize))
-		reject = true
-		return false
-	})
-	if reject {
-		return DuplicateReject, nil, reasons
-	}
-	if len(replace) > 0 {
-		return DuplicateReplace, replace, reasons
-	}
-	return DuplicateNone, nil, reasons
-}
-
 // duplicateV8Window is the fixed window upstream v8 uses (its time frame option is retired).
 const duplicateV8Window = 500 * time.Millisecond
 
-// CheckDuplicateV8 follows upstream v8: any other call on the same system,
-// talkgroup and site within +/-500 ms makes the new call a duplicate, the first
+// IsDuplicate follows upstream v8: a call is a duplicate when another call on
+// the same system, talkgroup and site starts within +/-500 ms of it. The first
 // copy wins, and size, format and radio are not looked at. Calls with no site
-// have site 0, so they are all the same site, as in v8.
-// The second value lists what was found, for the log.
-func (calls *Calls) CheckDuplicateV8(call *Call, db *Database) (bool, string) {
+// have site 0, so they all count as the same site.
+func (calls *Calls) IsDuplicate(call *Call, db *Database) bool {
 	calls.mutex.Lock()
 	defer calls.mutex.Unlock()
 
 	from := call.DateTime.Add(-duplicateV8Window)
 	to := call.DateTime.Add(duplicateV8Window)
 
-	query := fmt.Sprintf("select `id`, coalesce(length(`audio`), 0), coalesce(`source`, 0), `dateTime` from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v and `siteRef` = %v order by `dateTime`", from, to, call.System, call.Talkgroup, call.siteRef)
+	query := fmt.Sprintf("select `id` from `rdioScannerCalls` where (`dateTime` between '%v' and '%v') and `system` = %v and `talkgroup` = %v and `siteRef` = %v limit 1", from, to, call.System, call.Talkgroup, call.siteRef)
 	rows, err := db.Sql.Query(query)
 	if err != nil {
-		return false, ""
+		return false
 	}
 	defer rows.Close()
 
-	found := []string{}
-	for rows.Next() {
-		var (
-			id   uint
-			size int
-			src  float64
-			dt   any
-		)
-		if rows.Scan(&id, &size, &src, &dt) != nil {
-			continue
-		}
-		gap := time.Duration(0)
-		if t, err := db.ParseDateTime(dt); err == nil {
-			gap = t.Sub(call.DateTime)
-		}
-		found = append(found, fmt.Sprintf("#%d %+dms size=%d radio=%d", id, gap.Milliseconds(), size, uint(src)))
-	}
-
-	if len(found) == 0 {
-		return false, ""
-	}
-
-	return true, fmt.Sprintf("v8 rules (fixed %dms window, same site %d, first copy wins): new size=%d radio=%d; matched %s", duplicateV8Window.Milliseconds(), call.siteRef, len(call.Audio), callSourceID(call.Source), strings.Join(found, "; "))
+	return rows.Next()
 }
 
 func (calls *Calls) DeleteCalls(ids []uint, db *Database) {

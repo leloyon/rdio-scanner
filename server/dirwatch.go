@@ -472,6 +472,7 @@ func (dirwatch *Dirwatch) parseMask(call *Call) {
 		{"tgmhz", "#TGMHZ", `[\d\.]+`},
 		{"tg", "#TG", `\d+`},
 		{"time", "#TIME", `\d{2}[-:]{0,1}\d{2}[-:]{0,1}\d{2}`},
+		{"unitlbl", "#UNITLBL", `[a-zA-Z0-9,\.\ -]+`},
 		{"unit", "#UNIT", `\d+`},
 		{"ztime", "#ZTIME", `\d{2}[-:]{0,1}\d{2}[-:]{0,1}\d{2}`},
 	}
@@ -651,13 +652,26 @@ func (dirwatch *Dirwatch) parseMask(call *Call) {
 		}
 	}
 
+	unitId := 0
+
 	switch v := metaval["unit"].(type) {
 	case string:
 		if i, err := strconv.Atoi(v); err == nil {
+			unitId = i
 			switch sources := call.Sources.(type) {
 			case []map[string]any:
 				call.Sources = append(sources, map[string]any{"pos": 0, "src": uint(i)})
 			}
+		}
+	}
+
+	// #UNITLBL labels the unit named by #UNIT
+	switch v := metaval["unitlbl"].(type) {
+	case string:
+		if label := strings.TrimSpace(v); label != "" && unitId > 0 {
+			units := NewUnits()
+			units.Add(uint(unitId), label)
+			call.units = units
 		}
 	}
 }

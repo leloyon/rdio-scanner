@@ -11,7 +11,9 @@ On PC, you can also use my Windows application - [Rdio-Sherlock](https://github.
 # Changes to this fork:
 
 # Ingest, Duplicate Detection & File Stability:
-Smart Duplicate Resolution: Replaced simple duplicate rejection with a None / Reject / Replace decision engine. When a duplicate call arrives within the detection window with the same format and comparable size, the longer recording replaces the shorter one instead of discarding it. Calls of different formats remain separated.
+Duplicate Detection (as in Rdio Scanner v8): a new call is rejected when a call on the same system, talkgroup and site already starts within 500 ms of it. The first copy is kept. Calls get a new `siteRef` column (added automatically, existing calls get 0) that can be set with a `site` upload field or a `#SITE` dirwatch mask token. Back up your database before updating.
+
+Dirwatch: new DSD-FME / DSD-Neo type, new `#SITE` and `#UNITLBL` mask tokens, and with Delete After on, leftover DSD `TEMP_` files are cleaned up.
 
 Configurable Blank Audio Filter: Added a threshold setting (default: 3584 bytes / 3.5 KB) that blocks empty or dead-air uploads while allowing legitimate short calls through. Can be set to 0 in Admin Options to disable.
 
