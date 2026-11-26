@@ -1,13 +1,14 @@
 name: Build
 
 # Manual only: Actions tab -> Build -> Run workflow.
-# Leave "release_tag" empty to just get downloadable zips (Artifacts, kept 14 days).
-# Fill it in (for example 6.6.3-lel1) to also publish a GitHub release with the zips.
+# Type the Lel Edition number (for example 1.6) to name the files and publish a
+# release like the earlier ones: tag 6.6.3-v1.6, "Rdio-Scanner Lel Edition v1.6".
+# Leave it empty to only get test builds under Artifacts (kept 14 days).
 on:
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: "Optional release tag, e.g. 6.6.3-lel1 (empty = no release)"
+      edition:
+        description: "Lel Edition number, e.g. 1.6 (empty = test build, no release)"
         required: false
         default: ""
 
@@ -78,18 +79,24 @@ jobs:
           go build -trimpath -ldflags "-s -w" -o ../out/pkg/${{ matrix.bin }}
       - name: Zip
         run: |
-          cp LICENSE out/pkg/ || true
-          cd out/pkg
-          zip -q ../rdio-scanner-${{ matrix.label }}.zip *
+          E="${{ inputs.edition }}"; E="${E:-test}"
+          N="rdio-scanner_lel_v${E}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            cp out/pkg/${{ matrix.bin }} out/${N}.exe
+          else
+            cp LICENSE out/pkg/ || true
+            (cd out/pkg && zip -q ../${N}_${{ matrix.label }}.zip *)
+          fi
+          rm -rf out/pkg
       - uses: actions/upload-artifact@v4
         with:
           name: rdio-scanner-${{ matrix.label }}
-          path: out/rdio-scanner-${{ matrix.label }}.zip
+          path: out/*
           retention-days: 14
 
   release:
     needs: server
-    if: ${{ inputs.release_tag != '' }}
+    if: ${{ inputs.edition != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -97,9 +104,17 @@ jobs:
           pattern: rdio-scanner-*
           path: dist
           merge-multiple: true
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: server/version.go
+      - name: Work out the tag
+        id: tag
+        run: |
+          V=$(grep -oP 'Version\s*=\s*"\K[^"]+' server/version.go)
+          echo "tag=${V}-v${{ inputs.edition }}" >> "$GITHUB_OUTPUT"
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag }}
-          name: ${{ inputs.release_tag }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Rdio-Scanner Lel Edition v${{ inputs.edition }}
           target_commitish: ${{ github.sha }}
-          files: dist/*.zip
+          files: dist/*
