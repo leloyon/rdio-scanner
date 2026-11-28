@@ -101,6 +101,7 @@ export interface RdioScannerConfig {
     playbackGoesLive: boolean;
     showListenersCount: boolean;
     publicStatistics?: boolean;
+    speechBoost?: string;
     systems: RdioScannerSystem[];
     tags: { [key: string]: { [key: number]: number[] } };
     tagsToggle: boolean;

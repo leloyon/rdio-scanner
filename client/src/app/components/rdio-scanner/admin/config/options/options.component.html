@@ -128,6 +128,20 @@
     </div>
     <div class="row">
         <p>
+            <span class="mat-body">Speech Boost Default</span><br>
+            <span class="mat-caption">Clarity filter applied in the web player while listening (stored audio is never changed). Each listener can change it with the Speech boost selector. Not used by the official phone apps.</span>
+        </p>
+        <mat-form-field>
+            <mat-select formControlName="speechBoost">
+                <mat-option value="off">Off</mat-option>
+                <mat-option value="mild">Mild</mat-option>
+                <mat-option value="medium">Medium</mat-option>
+                <mat-option value="strong">Strong</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+    <div class="row">
+        <p>
             <span class="mat-body">Email Support</span><br>
             <span class="mat-caption">Email address where users can write to to get support.</span>
         </p>

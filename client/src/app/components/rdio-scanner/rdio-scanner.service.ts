@@ -79,6 +79,51 @@ export class RdioScannerService implements OnDestroy {
         if (this.volumeGain && this.audioContext) this.volumeGain.gain.setTargetAtTime(this.playbackVolume, this.audioContext.currentTime, 0.02);
     }
 
+    // Speech boost: a high-pass, a small lift where speech sits and a light compressor,
+    // applied while playing. The stored audio is never changed.
+    private speechChain: { highpass: BiquadFilterNode; presence: BiquadFilterNode; compressor: DynamicsCompressorNode } | undefined;
+    private speechBoost = 'off';
+    private playbackSpeed = 1;
+
+    private static SPEECH_LEVELS: { [level: string]: { highpass: number; presence: number; ratio: number } } = {
+        mild: { highpass: 200, presence: 2, ratio: 2 },
+        medium: { highpass: 250, presence: 4, ratio: 3 },
+        strong: { highpass: 300, presence: 6, ratio: 4 },
+    };
+
+    setSpeechBoost(level: string): void {
+        this.speechBoost = RdioScannerService.SPEECH_LEVELS[level] ? level : 'off';
+        this.applySpeechBoost();
+    }
+
+    setPlaybackSpeed(rate: number): void {
+        this.playbackSpeed = Math.min(2, Math.max(0.5, rate));
+        if (this.audioSource) this.audioSource.playbackRate.value = this.playbackSpeed;
+    }
+
+    private applySpeechBoost(): void {
+        const level = RdioScannerService.SPEECH_LEVELS[this.speechBoost];
+        if (level && this.speechChain) {
+            this.speechChain.highpass.frequency.value = level.highpass;
+            this.speechChain.presence.gain.value = level.presence;
+            this.speechChain.compressor.ratio.value = level.ratio;
+        }
+        if (this.audioSource) {
+            try { this.audioSource.disconnect(); } catch { }
+            this.connectAudioSource();
+        }
+    }
+
+    private connectAudioSource(): void {
+        if (!this.audioSource || !this.audioContext) return;
+        const out = this.volumeGain || this.audioContext.destination;
+        if (this.speechBoost !== 'off' && this.speechChain) {
+            this.audioSource.connect(this.speechChain.highpass);
+        } else {
+            this.audioSource.connect(out);
+        }
+    }
+
 
     private audioSource: AudioBufferSourceNode | undefined;
     private audioSourceStartTime = NaN;
@@ -508,7 +553,8 @@ export class RdioScannerService implements OnDestroy {
 
             this.audioSource = this.audioContext.createBufferSource();
             this.audioSource.buffer = buffer;
-            this.audioSource.connect(this.volumeGain || this.audioContext.destination);
+            this.audioSource.playbackRate.value = this.playbackSpeed;
+            this.connectAudioSource();
             this.audioSource.onended = () => this.skip({ delay: true });
             this.audioSource.start();
 
@@ -521,7 +567,7 @@ export class RdioScannerService implements OnDestroy {
                     }
 
                     if (!this.livefeedPaused) {
-                        this.event.emit({ time: this.audioContext.currentTime - this.audioSourceStartTime });
+                        this.event.emit({ time: (this.audioContext.currentTime - this.audioSourceStartTime) * this.playbackSpeed });
                     }
                 }
             });
@@ -728,6 +774,23 @@ export class RdioScannerService implements OnDestroy {
                 this.volumeGain = this.audioContext.createGain();
                 this.volumeGain.gain.value = this.playbackVolume;
                 this.volumeGain.connect(this.audioContext.destination);
+
+                const highpass = this.audioContext.createBiquadFilter();
+                highpass.type = 'highpass';
+                const presence = this.audioContext.createBiquadFilter();
+                presence.type = 'peaking';
+                presence.frequency.value = 2500;
+                presence.Q.value = 0.9;
+                const compressor = this.audioContext.createDynamicsCompressor();
+                compressor.threshold.value = -24;
+                compressor.knee.value = 20;
+                compressor.attack.value = 0.005;
+                compressor.release.value = 0.2;
+                highpass.connect(presence);
+                presence.connect(compressor);
+                compressor.connect(this.volumeGain);
+                this.speechChain = { highpass, presence, compressor };
+                this.applySpeechBoost();
             }
 
             if (!this.beepContext) {
@@ -923,6 +986,7 @@ export class RdioScannerService implements OnDestroy {
                         playbackGoesLive: typeof config.playbackGoesLive === 'boolean' ? config.playbackGoesLive : false,
                         showListenersCount: typeof config.showListenersCount === 'boolean' ? config.showListenersCount : false,
                         publicStatistics: config.publicStatistics === true,
+                        speechBoost: typeof config.speechBoost === 'string' ? config.speechBoost : 'off',
                         systems: Array.isArray(config.systems) ? config.systems.slice() : [],
                         tags: typeof config.tags !== null && typeof config.tags === 'object' ? config.tags : {},
                         tagsToggle: typeof config.tagsToggle === 'boolean' ? config.tagsToggle : false,

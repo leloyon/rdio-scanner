@@ -49,6 +49,36 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     volume = 100;
     private lastVolume = 100;
 
+    speechBoost = 'off';
+    private speechBoostChosen = false;
+    speechBoostLevels = [
+        { id: 'off', label: 'Off' },
+        { id: 'mild', label: 'Mild' },
+        { id: 'medium', label: 'Medium' },
+        { id: 'strong', label: 'Strong' },
+    ];
+    playbackSpeed = 1;
+    playbackSpeeds = [
+        { id: 1, label: '1x' },
+        { id: 1.25, label: '1.25x' },
+        { id: 1.5, label: '1.5x' },
+    ];
+
+    setSpeechBoost(value: string, chosen = true): void {
+        this.speechBoost = this.speechBoostLevels.some(l => l.id === value) ? value : 'off';
+        this.rdioScannerService.setSpeechBoost(this.speechBoost);
+        if (chosen) {
+            this.speechBoostChosen = true;
+            try { localStorage.setItem('rdio-scanner-boost', this.speechBoost); } catch { }
+        }
+    }
+
+    setPlaybackSpeed(value: number): void {
+        this.playbackSpeed = this.playbackSpeeds.some(s => s.id === value) ? value : 1;
+        this.rdioScannerService.setPlaybackSpeed(this.playbackSpeed);
+        try { localStorage.setItem('rdio-scanner-speed', String(this.playbackSpeed)); } catch { }
+    }
+
     toggleMute(): void {
         this.setVolume(this.volume === 0 ? this.lastVolume || 100 : 0);
     }
@@ -306,6 +336,9 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
         try {
             this.setTheme(localStorage.getItem('rdio-scanner-theme') || 'default');
             this.setVolume(100);
+            const boost = localStorage.getItem('rdio-scanner-boost');
+            if (boost) this.setSpeechBoost(boost);
+            this.setPlaybackSpeed(Number(localStorage.getItem('rdio-scanner-speed')) || 1);
         } catch { }
         this.syncClock();
     }
@@ -460,6 +493,10 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
         if ('config' in event) {
             this.config = event.config;
+
+            if (!this.speechBoostChosen) {
+                this.setSpeechBoost(this.config?.speechBoost || 'off', false);
+            }
 
             this.branding = this.config?.branding ?? '';
 

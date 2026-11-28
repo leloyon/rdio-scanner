@@ -172,6 +172,18 @@
         <mat-slider aria-label="Playback volume" min="0" max="100" step="1" [value]="volume" (input)="setVolume($event.value)"></mat-slider>
         <span>{{ volume }}%</span>
     </div>
+    <mat-form-field class="scanner-theme-control compact-control">
+        <mat-label>Speech boost</mat-label>
+        <mat-select aria-label="Speech boost" panelClass="scanner-theme-menu" [value]="speechBoost" (selectionChange)="setSpeechBoost($event.value)">
+            <mat-option *ngFor="let l of speechBoostLevels" [value]="l.id">{{ l.label }}</mat-option>
+        </mat-select>
+    </mat-form-field>
+    <mat-form-field class="scanner-theme-control compact-control">
+        <mat-label>Speed</mat-label>
+        <mat-select aria-label="Playback speed" panelClass="scanner-theme-menu" [value]="playbackSpeed" (selectionChange)="setPlaybackSpeed($event.value)">
+            <mat-option *ngFor="let s of playbackSpeeds" [value]="s.id">{{ s.label }}</mat-option>
+        </mat-select>
+    </mat-form-field>
     <mat-form-field class="scanner-theme-control">
         <mat-label>Theme</mat-label>
         <mat-select aria-label="Scanner theme" panelClass="scanner-theme-menu" [value]="theme" (selectionChange)="setTheme($event.value)">

@@ -35,6 +35,7 @@ type Options struct {
 	DuplicateBlankAudioSize     uint   `json:"duplicateBlankAudioSize"`
 	DirwatchMaxWait             uint   `json:"dirwatchMaxWait"`
 	PublicStatistics            bool   `json:"publicStatistics"`
+	SpeechBoost                 string `json:"speechBoost"`
 	Email                       string `json:"email"`
 	KeypadBeeps                 string `json:"keypadBeeps"`
 	MaxClients                  uint   `json:"maxClients"`
@@ -149,6 +150,18 @@ func (options *Options) FromMap(m map[string]any) *Options {
 		options.PublicStatistics = false
 	}
 
+	switch v := m["speechBoost"].(type) {
+	case string:
+		switch v {
+		case "mild", "medium", "strong":
+			options.SpeechBoost = v
+		default:
+			options.SpeechBoost = "off"
+		}
+	default:
+		options.SpeechBoost = "off"
+	}
+
 	switch v := m["email"].(type) {
 	case string:
 		options.Email = v
@@ -241,6 +254,7 @@ func (options *Options) Read(db *Database) error {
 	options.DuplicateBlankAudioSize = defaults.options.duplicateBlankAudioSize
 	options.DirwatchMaxWait = defaults.options.dirwatchMaxWait
 	options.PublicStatistics = false
+	options.SpeechBoost = "off"
 	options.MaxClients = defaults.options.maxClients
 	options.PlaybackGoesLive = defaults.options.playbackGoesLive
 	options.PruneDays = defaults.options.pruneDays
@@ -437,6 +451,7 @@ func (options *Options) Write(db *Database) error {
 		"duplicateBlankAudioSize":     options.DuplicateBlankAudioSize,
 		"dirwatchMaxWait":             options.DirwatchMaxWait,
 		"publicStatistics":            options.PublicStatistics,
+		"speechBoost":                 options.SpeechBoost,
 		"keypadBeeps":                 options.KeypadBeeps,
 		"maxClients":                  options.MaxClients,
 		"normalizeTalkgroups":         options.NormalizeTalkgroups,

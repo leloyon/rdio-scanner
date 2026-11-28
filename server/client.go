@@ -186,6 +186,7 @@ func (client *Client) SendConfig(groups *Groups, options *Options, systems *Syst
 		"playbackGoesLive":   options.PlaybackGoesLive,
 		"showListenersCount": options.ShowListenersCount,
 		"publicStatistics":   options.PublicStatistics,
+		"speechBoost":        options.SpeechBoost,
 		"systems":            client.SystemsMap,
 		"tags":               client.TagsMap,
 		"tagsToggle":         options.TagsToggle,

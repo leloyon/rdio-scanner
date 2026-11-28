@@ -163,6 +163,7 @@ export interface Options {
     duplicateBlankAudioSize?: number;
     dirwatchMaxWait?: number;
     publicStatistics?: boolean;
+    speechBoost?: string;
     email?: string;
     keypadBeeps?: string;
     maxClients?: number;
@@ -560,6 +561,7 @@ export class RdioScannerAdminService implements OnDestroy {
             duplicateBlankAudioSize: [options?.duplicateBlankAudioSize ?? 3584, [Validators.required, Validators.min(0)]],
             dirwatchMaxWait: [options?.dirwatchMaxWait ?? 180, [Validators.required, Validators.min(0)]],
             publicStatistics: [options?.publicStatistics ?? false],
+            speechBoost: [options?.speechBoost ?? 'off'],
             email: [options?.email],
             keypadBeeps: [options?.keypadBeeps, Validators.required],
             maxClients: [options?.maxClients, [Validators.required, Validators.min(1)]],
